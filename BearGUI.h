@@ -19,6 +19,8 @@ namespace Bear
 			static void Update();
 			static void Render();
 			static void Clean();
+		public:
+			static void Resize(const ULInt& newWidth, const ULInt& newHeight);
 		};
 	}
 }
