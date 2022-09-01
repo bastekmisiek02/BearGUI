@@ -6,6 +6,12 @@ namespace Bear
 {
 	namespace GUI
 	{
+		struct Vertex
+		{
+			Vec2 position;
+			Vec4 color;
+		};
+
 		class Renderer
 		{
 		public:

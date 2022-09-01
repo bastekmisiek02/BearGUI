@@ -27,19 +27,19 @@
 				static Collections::DynamicArray<VkSemaphore> semaphores[2];
 				static Collections::DynamicArray<VkFence> fences;
 			private:
-				static struct
+				static struct VertexBuffer
 				{
 					VkBuffer buffer;
 					VkDeviceMemory memory;
 				}vertexBuffer;
 			private:
-				static struct
+				static struct IndexBuffer
 				{
 					VkBuffer buffer;
 					VkDeviceMemory memory;
 				}indexBuffer;
 			private:
-				static struct
+				static struct DynamicData
 				{
 					VkViewport viewport;
 					VkRect2D scissor;

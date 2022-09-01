@@ -19,6 +19,7 @@ namespace Bear
 		using DynamicArray = Bear::Collections::DynamicArray<T>;
 
 		using IVec2 = Bear::GraphicsMath::IVec2;
+		using Vec2 = Bear::GraphicsMath::Vec2;
 		using Vec4 = Bear::GraphicsMath::Vec4;
 
 		using String = Bear::Collections::String;
@@ -27,12 +28,14 @@ namespace Bear
 		#ifdef USE_VULKAN
 		struct VulkanInfo
 		{
+			VkPhysicalDevice physicalDevice;
 			VkDevice device;
 			ULInt deviceQueueFamilyIndex;
 			VkQueue queue;
 			VkSurfaceKHR surface;
 
 			ULInt framesCount;
+			VkPresentModeKHR presentMode;
 		};
 		#endif
 
