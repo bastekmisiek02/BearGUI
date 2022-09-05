@@ -12,6 +12,8 @@
 			private:
 				static VulkanInfo info;
 			private:
+				static VkPhysicalDeviceMemoryProperties memoryProperties;
+			private:
 				static VkRenderPass renderPass;
 				static VkSwapchainKHR swapchain;
 				static Collections::DynamicArray<VkImageView> imageViews;
@@ -20,11 +22,12 @@
 				static VkPipeline pipeline;
 			private:
 				static VkCommandPool commandPool;
-				static Collections::DynamicArray<VkCommandBuffer> commandBuffer;
+				static Collections::DynamicArray<VkCommandBuffer> commandBuffers;
 			private:
 				static Collections::DynamicArray<VkFramebuffer> framebuffers;
 			private:
-				static Collections::DynamicArray<VkSemaphore> semaphores[2];
+				static Collections::DynamicArray<VkSemaphore> imageAvailableSemaphores;
+				static Collections::DynamicArray<VkSemaphore> submitSemaphores;
 				static Collections::DynamicArray<VkFence> fences;
 			private:
 				static struct VertexBuffer
@@ -44,6 +47,9 @@
 					VkViewport viewport;
 					VkRect2D scissor;
 				}dynamicData;
+			private:
+				static uint32_t FindMemoryIndex(const uint32_t& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags);
+				static VkMemoryRequirements CreateBuffer(VkBuffer& buffer, VkDeviceMemory& memory, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags);
 			public:
 				static void Init(VulkanInfo* info);
 				static void Dispose();

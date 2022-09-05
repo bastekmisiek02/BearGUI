@@ -34,7 +34,7 @@ namespace Bear
 			VkQueue queue;
 			VkSurfaceKHR surface;
 
-			ULInt framesCount;
+			ULInt framesInFlightCount;
 			VkPresentModeKHR presentMode;
 		};
 		#endif

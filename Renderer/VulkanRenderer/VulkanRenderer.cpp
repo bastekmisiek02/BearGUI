@@ -1,14 +1,19 @@
 #ifdef USE_VULKAN
 	#include "VulkanRenderer.h"
 
+	#include "Renderer/Renderer.h"
+
 #define CHECK_RESULT(x) if(x != VkResult::VK_SUCCESS) throw String("Error ") + __FILE__ + " " + __LINE__;
 #define STRUCTURE_TYPE(x) VkStructureType::VK_STRUCTURE_TYPE_##x
+#define OFFSETOF(type, member) (ULInt)&((type*)0)->member
 
 	namespace Bear
 	{
 		namespace GUI
 		{
 			VulkanInfo VulkanRenderer::info = {};
+
+			VkPhysicalDeviceMemoryProperties VulkanRenderer::memoryProperties;
 
 			VkRenderPass VulkanRenderer::renderPass;
 			VkSwapchainKHR VulkanRenderer::swapchain;
@@ -18,28 +23,68 @@
 			VkPipeline VulkanRenderer::pipeline;
 		
 			VkCommandPool VulkanRenderer::commandPool;
-			Collections::DynamicArray<VkCommandBuffer> VulkanRenderer::commandBuffer;
+			Collections::DynamicArray<VkCommandBuffer> VulkanRenderer::commandBuffers;
 		
 			Collections::DynamicArray<VkFramebuffer> VulkanRenderer::framebuffers;
 		
-			Collections::DynamicArray<VkSemaphore> VulkanRenderer::semaphores[2];
+			Collections::DynamicArray<VkSemaphore> VulkanRenderer::imageAvailableSemaphores;
+			Collections::DynamicArray<VkSemaphore> VulkanRenderer::submitSemaphores;
 			Collections::DynamicArray<VkFence> VulkanRenderer::fences;
 
 			VulkanRenderer::VertexBuffer VulkanRenderer::vertexBuffer = {};
 			VulkanRenderer::IndexBuffer VulkanRenderer::indexBuffer = {};
 			VulkanRenderer::DynamicData VulkanRenderer::dynamicData = {};
-		
-			static struct
+
+			uint32_t VulkanRenderer::FindMemoryIndex(const uint32_t& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
-				VkBuffer buffer;
-				VkDeviceMemory memory;
-			}indexBuffer;
-		
-			static struct
+				for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+				{
+					if ((memoryType & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags))
+						return i;
+				}
+
+				return ~0;
+			}
+
+			VkMemoryRequirements VulkanRenderer::CreateBuffer(VkBuffer& buffer, VkDeviceMemory& memory, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
-				VkViewport viewport;
-				VkRect2D scissor;
-			}dynamicData;
+				//Buffer
+				{
+					VkBufferCreateInfo createInfo
+					{
+						STRUCTURE_TYPE(BUFFER_CREATE_INFO),			//sType
+						nullptr,									//pNext
+						0,											//flags
+						size,										//size
+						bufferUsage,								//usage
+						VkSharingMode::VK_SHARING_MODE_EXCLUSIVE,	//sharingMode
+						0,											//queueFamilyIndexCount
+						nullptr										//pQueueFamilyIndices
+					};
+
+					CHECK_RESULT(vkCreateBuffer(info.device, &createInfo, nullptr, &buffer));
+				}
+
+				VkMemoryRequirements memoryRequirements;
+				vkGetBufferMemoryRequirements(info.device, buffer, &memoryRequirements);
+
+				//DeviceMemory
+				{
+					VkMemoryAllocateInfo allocateInfo
+					{
+						STRUCTURE_TYPE(MEMORY_ALLOCATE_INFO),									//sType
+						nullptr,																//pNext
+						memoryRequirements.size,												//allocationSize
+						FindMemoryIndex(memoryRequirements.memoryTypeBits, memoryPropertyFlags)	//memoryTypeIndex
+					};
+
+					CHECK_RESULT(vkAllocateMemory(info.device, &allocateInfo, nullptr, &memory));
+				}
+
+				CHECK_RESULT(vkBindBufferMemory(info.device, buffer, memory, 0));
+
+				return memoryRequirements;
+			}
 
 			void VulkanRenderer::Init(VulkanInfo* info)
 			{
@@ -49,6 +94,11 @@
 
 				VkSurfaceFormatKHR surfaceFormat;
 				VkSurfaceCapabilitiesKHR surfaceCapabilities;
+
+				//PhysicalDevice
+				{
+					vkGetPhysicalDeviceMemoryProperties(info->physicalDevice, &memoryProperties);
+				}
 
 				//Surface
 				{
@@ -141,7 +191,7 @@
 						nullptr,																//pNext
 						0,																		//flags
 						info->surface,															//surface
-						info->framesCount,														//minImageCount
+						info->framesInFlightCount,												//minImageCount
 						surfaceFormat.format,													//imageFormat
 						surfaceFormat.colorSpace,												//imageColorSpace
 						surfaceCapabilities.currentExtent,										//imageExtent
@@ -217,12 +267,11 @@
 
 					constexpr char shaderCount = 2;
 					VkPipelineShaderStageCreateInfo stages[shaderCount];
+					VkShaderModule shaderModules[shaderCount];
 
 					//Shaders
 					{
 						constexpr VkShaderStageFlagBits shaderStages[shaderCount] = { VkShaderStageFlagBits::VK_SHADER_STAGE_VERTEX_BIT, VkShaderStageFlagBits::VK_SHADER_STAGE_FRAGMENT_BIT };
-
-						VkShaderModule shaderModules[shaderCount];
 
 						/*
 							#version 450
@@ -337,16 +386,24 @@
 
 					VkVertexInputBindingDescription vertexBindingDescription
 					{
-
+						0,													//binding
+						sizeof(Vertex),										//stride
+						VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX		//inputRate
 					};
-					
+
 					DynamicArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions
 					{
 						{
-
+							0,											//location
+							0,											//binding
+							VkFormat::VK_FORMAT_R32G32_SFLOAT,			//format
+							OFFSETOF(Vertex, position)					//offset
 						},
 						{
-
+							1,											//location
+							0,											//binding
+							VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT,	//format
+							OFFSETOF(Vertex, color)						//offset
 						}
 					};
 
@@ -361,12 +418,114 @@
 						vertexAttributeDescriptions.Data()							//pVertexAttributeDescriptions
 					};
 
-					VkPipelineInputAssemblyStateCreateInfo inputAssemblyState;
-					VkPipelineTessellationStateCreateInfo tessellationState;
-					VkPipelineRasterizationStateCreateInfo rasterizationState;
-					VkPipelineMultisampleStateCreateInfo multisampleState;
-					VkPipelineColorBlendStateCreateInfo colorBlendState;
-					VkPipelineDynamicStateCreateInfo dynamicState;
+					VkPipelineInputAssemblyStateCreateInfo inputAssemblyState
+					{
+						STRUCTURE_TYPE(PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO),	//sType
+						nullptr,													//pNext
+						0,															//flags
+						VkPrimitiveTopology::VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,	//topology
+						false														//primitiveRestartEnable
+					};
+
+					VkViewport viewport
+					{
+						0.0f,												//x
+						0.0f,												//y
+						(float)surfaceCapabilities.currentExtent.width,		//width
+						(float)surfaceCapabilities.currentExtent.height,    //height
+						0.01f,												//minDepth
+						1.0f,												//maxDepth
+					};
+
+					VkRect2D scissor
+					{
+						{										//offset
+							0,	//x
+							0	//y
+						},
+						surfaceCapabilities.currentExtent.width	//extent
+					};
+
+					VkPipelineViewportStateCreateInfo viewportState
+					{
+						STRUCTURE_TYPE(PIPELINE_VIEWPORT_STATE_CREATE_INFO),	//sType
+						nullptr,												//pNext
+						0,														//flags
+						1,														//viewportCount
+						&viewport,												//pViewports
+						1,														//scissorCount
+						&scissor												//pScissors
+					};															
+
+					VkPipelineRasterizationStateCreateInfo rasterizationState
+					{
+						STRUCTURE_TYPE(PIPELINE_RASTERIZATION_STATE_CREATE_INFO),	//sType
+						nullptr,													//pNext
+						0,															//flags
+						false,														//depthClampEnable
+						false,														//rasterizerDiscardEnable
+						VkPolygonMode::VK_POLYGON_MODE_FILL,						//polygonMode
+						VkCullModeFlagBits::VK_CULL_MODE_NONE,						//cullMode
+						VkFrontFace::VK_FRONT_FACE_CLOCKWISE,						//frontFace
+						false,														//depthBiasEnable
+						0.0f,														//depthBiasConstantFactor
+						0.0f,														//depthBiasClamp
+						0.0f,														//depthBiasSlopeFactor
+						1.0f														//lineWidth
+					};
+
+					VkPipelineMultisampleStateCreateInfo multisampleState
+					{
+						STRUCTURE_TYPE(PIPELINE_MULTISAMPLE_STATE_CREATE_INFO),	//sType
+						nullptr,												//pNext
+						0,														//flags
+						VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,			//rasterizationSamples
+						false,													//sampleShadingEnable
+						0.0f,													//minSampleShading
+						nullptr,												//pSampleMask
+						false,													//alphaToCoverageEnable
+						false													//alphaToOneEnable
+					};
+
+					VkPipelineColorBlendAttachmentState attachment
+					{
+						false,																																																				//blendEnable
+						VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//srcColorBlendFactor
+						VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//dstColorBlendFactor
+						VkBlendOp::VK_BLEND_OP_ADD,																																															//colorBlendOp
+						VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//srcAlphaBlendFactor
+						VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//dstAlphaBlendFactor
+						VkBlendOp::VK_BLEND_OP_ADD,																																															//alphaBlendOp
+						VkColorComponentFlagBits::VK_COLOR_COMPONENT_R_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_G_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_B_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_A_BIT	//colorWriteMask
+					};
+
+					VkPipelineColorBlendStateCreateInfo colorBlendState
+					{
+						STRUCTURE_TYPE(PIPELINE_COLOR_BLEND_STATE_CREATE_INFO),	//sType
+						nullptr,												//pNext
+						0,														//flags
+						false,													//logicOpEnable
+						VkLogicOp::VK_LOGIC_OP_COPY,							//logicOp
+						1,														//attachmentCount
+						&attachment,											//pAttachments
+						{														//blendConstants[4]
+							0.0f,
+							0.0f,
+							0.0f,
+							0.0f
+						}
+					};
+
+					const VkDynamicState dynamicStates[] = {VkDynamicState::VK_DYNAMIC_STATE_VIEWPORT, VkDynamicState::VK_DYNAMIC_STATE_SCISSOR};
+
+					VkPipelineDynamicStateCreateInfo dynamicState
+					{
+						STRUCTURE_TYPE(PIPELINE_DYNAMIC_STATE_CREATE_INFO),	//sType
+						nullptr,											//pNext
+						0,													//flags
+						sizeof(dynamicStates) / sizeof(VkDynamicState),		//dynamicStateCount
+						dynamicStates										//pDynamicStates
+					};
 
 					VkGraphicsPipelineCreateInfo createInfo
 					{
@@ -377,8 +536,8 @@
 						stages,											//pStages
 						&vertexInputState,								//pVertexInputState
 						&inputAssemblyState,							//pInputAssemblyState
-						&tessellationState,								//pTessellationState
-						nullptr,										//pViewportState
+						nullptr,										//pTessellationState
+						&viewportState,									//pViewportState
 						&rasterizationState,							//pRasterizationState
 						&multisampleState,								//pMultisampleState
 						nullptr,										//pDepthStencilState
@@ -392,11 +551,135 @@
 					};
 
 					CHECK_RESULT(vkCreateGraphicsPipelines(info->device, nullptr, 1, &createInfo, nullptr, &pipeline));
+
+					for (ULInt i = 0; i < shaderCount; i++)
+						vkDestroyShaderModule(info->device, shaderModules[i], nullptr);
+				}
+
+				//CommandPool
+				{
+					VkCommandPoolCreateInfo createInfo
+					{
+						STRUCTURE_TYPE(COMMAND_POOL_CREATE_INFO),										//sType
+						nullptr,																		//pNext
+						VkCommandPoolCreateFlagBits::VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,	//flags
+						info->deviceQueueFamilyIndex													//queueFamilyIndex
+					};
+
+					CHECK_RESULT(vkCreateCommandPool(info->device, &createInfo, nullptr, &commandPool));
+				}
+
+				//CommandBuffer
+				{
+					commandBuffers.Resize(info->framesInFlightCount);
+
+					VkCommandBufferAllocateInfo allocateInfo
+					{
+						STRUCTURE_TYPE(COMMAND_BUFFER_ALLOCATE_INFO),			//sType
+						nullptr,												//pNext
+						commandPool,											//commandPool
+						VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_PRIMARY,	//level
+						info->framesInFlightCount								//commandBufferCount
+					};
+
+					CHECK_RESULT(vkAllocateCommandBuffers(info->device, &allocateInfo, commandBuffers.Data()));
+				}
+
+				//Framebuffers
+				{
+					framebuffers.Resize(info->framesInFlightCount);
+
+					for (ULInt i = 0; i < imageViews.Length(); i++)
+					{
+						VkFramebufferCreateInfo createInfo
+						{
+							STRUCTURE_TYPE(FRAMEBUFFER_CREATE_INFO),	//sType;
+							nullptr,									//pNext;
+							0,											//flags;
+							renderPass,									//renderPass;
+							1,											//attachmentCount
+							&imageViews[i],								//pAttachments;
+							surfaceCapabilities.currentExtent.width,	//width;
+							surfaceCapabilities.currentExtent.height,	//height;
+							1											//layers;
+						};
+
+						CHECK_RESULT(vkCreateFramebuffer(info->device, &createInfo, nullptr, &framebuffers[i]))
+					}
+				}
+
+				//Semaphores
+				{
+					imageAvailableSemaphores.Resize(info->framesInFlightCount);
+					submitSemaphores.Resize(info->framesInFlightCount);
+
+					VkSemaphoreCreateInfo createInfo
+					{
+						STRUCTURE_TYPE(SEMAPHORE_CREATE_INFO),	//sType
+						nullptr,								//pNext
+						0										//flags
+					};
+
+					for (ULInt i = 0; i < info->framesInFlightCount; i++)
+					{
+						CHECK_RESULT(vkCreateSemaphore(info->device, &createInfo, nullptr, &imageAvailableSemaphores[i]));
+						CHECK_RESULT(vkCreateSemaphore(info->device, &createInfo, nullptr, &submitSemaphores[i]));
+					}
+				}
+
+				//Fences
+				{
+					fences.Resize(info->framesInFlightCount);
+
+					VkFenceCreateInfo createInfo
+					{
+						STRUCTURE_TYPE(FENCE_CREATE_INFO),						//sType
+						nullptr,												//pNext
+						VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT		//flags
+					};
+
+					for (ULInt i = 0; i < info->framesInFlightCount; i++)
+						CHECK_RESULT(vkCreateFence(info->device, &createInfo, nullptr, &fences[i]));
+				}
+
+				//VertexBuffer
+				{
+					CreateBuffer(vertexBuffer.buffer, vertexBuffer.memory, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+				}
+
+				//IndexBuffer
+				{
+					CreateBuffer(indexBuffer.buffer, indexBuffer.memory, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 				}
 			}
 
 			void VulkanRenderer::Dispose()
 			{
+				vkDeviceWaitIdle(info.device);
+
+				{
+					vkDestroyBuffer(info.device, indexBuffer.buffer, nullptr);
+					vkFreeMemory(info.device, indexBuffer.memory, nullptr);
+				}
+
+				{
+					vkDestroyBuffer(info.device, vertexBuffer.buffer, nullptr);
+					vkFreeMemory(info.device, vertexBuffer.memory, nullptr);
+				}
+
+				for (ULInt i = 0; i < info.framesInFlightCount; i++)
+				{
+					vkDestroyFence(info.device, fences[i], nullptr);
+
+					vkDestroySemaphore(info.device, imageAvailableSemaphores[i], nullptr);
+					vkDestroySemaphore(info.device, submitSemaphores[i], nullptr);
+				}
+
+				for (auto& framebuffer : framebuffers)
+					vkDestroyFramebuffer(info.device, framebuffer, nullptr);
+
+				vkFreeCommandBuffers(info.device, commandPool, commandBuffers.Length(), commandBuffers.Data());
+				vkDestroyCommandPool(info.device, commandPool, nullptr);
 				vkDestroyPipelineLayout(info.device, pipelineLayout, nullptr);
 				vkDestroyPipeline(info.device, pipeline, nullptr);
 				for (auto& imageView : imageViews)
@@ -407,6 +690,7 @@
 
 			void VulkanRenderer::Render()
 			{
+
 			}
 
 			void VulkanRenderer::Resize(const ULInt& newWidth, const ULInt& newHeight)
