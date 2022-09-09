@@ -26,7 +26,7 @@ namespace Bear
 		
 		void Renderer::Resize(const ULInt& newWidth, const ULInt& newHeight)
 		{
-			VulkanRenderer::Resize(newWidth, newHeight);
+			VulkanRenderer::Resize();
 		}
 		#endif
 	}

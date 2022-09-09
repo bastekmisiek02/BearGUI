@@ -14,9 +14,17 @@
 			private:
 				static VkPhysicalDeviceMemoryProperties memoryProperties;
 			private:
+				static struct SurfaceInfo
+				{
+					VkSurfaceFormatKHR format;
+					VkSurfaceCapabilitiesKHR capabilities;
+				}surfaceInfo;
+			private:
 				static VkRenderPass renderPass;
+			private:
 				static VkSwapchainKHR swapchain;
 				static Collections::DynamicArray<VkImageView> imageViews;
+				static Collections::DynamicArray<VkFramebuffer> framebuffers;
 			private:
 				static VkPipelineLayout pipelineLayout;
 				static VkPipeline pipeline;
@@ -24,10 +32,8 @@
 				static VkCommandPool commandPool;
 				static Collections::DynamicArray<VkCommandBuffer> commandBuffers;
 			private:
-				static Collections::DynamicArray<VkFramebuffer> framebuffers;
-			private:
 				static Collections::DynamicArray<VkSemaphore> imageAvailableSemaphores;
-				static Collections::DynamicArray<VkSemaphore> submitSemaphores;
+				static Collections::DynamicArray<VkSemaphore> presentAvailableSemaphores;
 				static Collections::DynamicArray<VkFence> fences;
 			private:
 				static struct VertexBuffer
@@ -42,6 +48,8 @@
 					VkDeviceMemory memory;
 				}indexBuffer;
 			private:
+				static uint32_t currentFrame;
+			private:
 				static struct DynamicData
 				{
 					VkViewport viewport;
@@ -50,13 +58,20 @@
 			private:
 				static uint32_t FindMemoryIndex(const uint32_t& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags);
 				static VkMemoryRequirements CreateBuffer(VkBuffer& buffer, VkDeviceMemory& memory, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags);
+			private:
+				static void ResetCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& index);
+			private:
+				static void CreateSizingObjects();
+				static void DisposeSizingObjects();
+
+				static void RecreateSizingObjects();
 			public:
 				static void Init(VulkanInfo* info);
 				static void Dispose();
 			public:
 				static void Render();
 			public:
-				static void Resize(const ULInt& newWidth, const ULInt& newHeight);
+				static void Resize();
 			};
 		}
 	}

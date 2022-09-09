@@ -15,6 +15,8 @@
 
 			VkPhysicalDeviceMemoryProperties VulkanRenderer::memoryProperties;
 
+			VulkanRenderer::SurfaceInfo VulkanRenderer::surfaceInfo = {};
+
 			VkRenderPass VulkanRenderer::renderPass;
 			VkSwapchainKHR VulkanRenderer::swapchain;
 			Collections::DynamicArray<VkImageView> VulkanRenderer::imageViews;
@@ -28,12 +30,14 @@
 			Collections::DynamicArray<VkFramebuffer> VulkanRenderer::framebuffers;
 		
 			Collections::DynamicArray<VkSemaphore> VulkanRenderer::imageAvailableSemaphores;
-			Collections::DynamicArray<VkSemaphore> VulkanRenderer::submitSemaphores;
+			Collections::DynamicArray<VkSemaphore> VulkanRenderer::presentAvailableSemaphores;
 			Collections::DynamicArray<VkFence> VulkanRenderer::fences;
 
 			VulkanRenderer::VertexBuffer VulkanRenderer::vertexBuffer = {};
 			VulkanRenderer::IndexBuffer VulkanRenderer::indexBuffer = {};
 			VulkanRenderer::DynamicData VulkanRenderer::dynamicData = {};
+
+			uint32_t VulkanRenderer::currentFrame = 0;
 
 			uint32_t VulkanRenderer::FindMemoryIndex(const uint32_t& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
@@ -92,9 +96,6 @@
 
 				uint32_t count = 0;
 
-				VkSurfaceFormatKHR surfaceFormat;
-				VkSurfaceCapabilitiesKHR surfaceCapabilities;
-
 				//PhysicalDevice
 				{
 					vkGetPhysicalDeviceMemoryProperties(info->physicalDevice, &memoryProperties);
@@ -106,18 +107,28 @@
 					DynamicArray<VkSurfaceFormatKHR> formats(count);
 					CHECK_RESULT(vkGetPhysicalDeviceSurfaceFormatsKHR(info->physicalDevice, info->surface, &count, formats.Data()));
 
-					surfaceFormat = formats[0];
+					surfaceInfo.format = formats[0];
 
 					for (auto& format : formats)
 					{
 						if (format.format == VkFormat::VK_FORMAT_B8G8R8A8_SRGB && format.colorSpace == VkColorSpaceKHR::VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 						{
-							surfaceFormat = format;
+							surfaceInfo.format = format;
 							break;
 						}
 					}
 
-					CHECK_RESULT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->physicalDevice, info->surface, &surfaceCapabilities));
+					CHECK_RESULT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->physicalDevice, info->surface, &surfaceInfo.capabilities));
+
+					dynamicData.viewport.width = surfaceInfo.capabilities.currentExtent.width;
+					dynamicData.viewport.height = surfaceInfo.capabilities.currentExtent.height;
+					dynamicData.viewport.x = 0;
+					dynamicData.viewport.y = 0;
+					dynamicData.viewport.minDepth = 0.01f;
+					dynamicData.viewport.maxDepth = 0.01f;
+
+					dynamicData.scissor.extent = surfaceInfo.capabilities.currentExtent;
+					dynamicData.scissor.offset = { 0, 0 };
 				}
 
 				//RenderPass
@@ -126,13 +137,13 @@
 					VkAttachmentDescription attachmentDescription
 					{
 						0,															//flags
-						surfaceFormat.format,										//format
+						surfaceInfo.format.format,									//format
 						VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,				//samples
-						VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD,				//loadOp
+						VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_CLEAR,			//loadOp
 						VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE,			//storeOp
 						VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE,		//stencilLoadOp
 						VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE,		//stencilStoreOp
-						VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,				//initialLayout
+						VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED,					//initialLayout
 						VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR				//finalLayout
 					};
 
@@ -183,69 +194,7 @@
 					CHECK_RESULT(vkCreateRenderPass(info->device, &createInfo, nullptr, &renderPass));
 				}
 
-				//Swapchain
-				{
-					VkSwapchainCreateInfoKHR createInfo
-					{
-						STRUCTURE_TYPE(SWAPCHAIN_CREATE_INFO_KHR),								//sType
-						nullptr,																//pNext
-						0,																		//flags
-						info->surface,															//surface
-						info->framesInFlightCount,												//minImageCount
-						surfaceFormat.format,													//imageFormat
-						surfaceFormat.colorSpace,												//imageColorSpace
-						surfaceCapabilities.currentExtent,										//imageExtent
-						1,																		//imageArrayLayers
-						VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,				//imageUsage
-						VkSharingMode::VK_SHARING_MODE_EXCLUSIVE,								//imageSharingMode
-						0,																		//queueFamilyIndexCount
-						nullptr,																//pQueueFamilyIndices
-						VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,	//preTransform
-						VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,			//compositeAlpha
-						info->presentMode,														//presentMode
-						true,																	//clipped
-						nullptr																	//oldSwapchain
-					};
-
-					CHECK_RESULT(vkCreateSwapchainKHR(info->device, &createInfo, nullptr, &swapchain));
-				}
-
-				//ImageViews
-				{
-					CHECK_RESULT(vkGetSwapchainImagesKHR(info->device, swapchain, &count, nullptr));
-					DynamicArray<VkImage> images(count);
-					CHECK_RESULT(vkGetSwapchainImagesKHR(info->device, swapchain, &count, images.Data()));
-
-					imageViews.Resize(count);
-
-					for (uint32_t i = 0; i < count; i++)
-					{
-						VkImageViewCreateInfo createInfo
-						{
-							STRUCTURE_TYPE(IMAGE_VIEW_CREATE_INFO),					//sType
-							nullptr,												//pNext
-							0,														//flags
-							images[i],												//image
-							VkImageViewType::VK_IMAGE_VIEW_TYPE_2D,					//viewType
-							surfaceFormat.format,									//format
-							{														//components
-								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//r
-								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//g
-								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//b
-								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY		//a
-							},
-							{														//subresourceRange
-								VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,		//aspectMask
-								0,														//baseMipLevel
-								1,														//levelCount
-								0,														//baseArrayLayer
-								1														//layerCount
-							}
-						};
-
-						CHECK_RESULT(vkCreateImageView(info->device, &createInfo, nullptr, &imageViews[i]));
-					}
-				}
+				CreateSizingObjects();
 
 				//Pipeline
 				{
@@ -429,12 +378,12 @@
 
 					VkViewport viewport
 					{
-						0.0f,												//x
-						0.0f,												//y
-						(float)surfaceCapabilities.currentExtent.width,		//width
-						(float)surfaceCapabilities.currentExtent.height,    //height
-						0.01f,												//minDepth
-						1.0f,												//maxDepth
+						0.0f,													//x
+						0.0f,													//y
+						(float)surfaceInfo.capabilities.currentExtent.width,	//width
+						(float)surfaceInfo.capabilities.currentExtent.height,   //height
+						0.01f,													//minDepth
+						1.0f,													//maxDepth
 					};
 
 					VkRect2D scissor
@@ -443,7 +392,7 @@
 							0,	//x
 							0	//y
 						},
-						surfaceCapabilities.currentExtent.width	//extent
+						surfaceInfo.capabilities.currentExtent.width	//extent
 					};
 
 					VkPipelineViewportStateCreateInfo viewportState
@@ -585,33 +534,10 @@
 					CHECK_RESULT(vkAllocateCommandBuffers(info->device, &allocateInfo, commandBuffers.Data()));
 				}
 
-				//Framebuffers
-				{
-					framebuffers.Resize(info->framesInFlightCount);
-
-					for (ULInt i = 0; i < imageViews.Length(); i++)
-					{
-						VkFramebufferCreateInfo createInfo
-						{
-							STRUCTURE_TYPE(FRAMEBUFFER_CREATE_INFO),	//sType;
-							nullptr,									//pNext;
-							0,											//flags;
-							renderPass,									//renderPass;
-							1,											//attachmentCount
-							&imageViews[i],								//pAttachments;
-							surfaceCapabilities.currentExtent.width,	//width;
-							surfaceCapabilities.currentExtent.height,	//height;
-							1											//layers;
-						};
-
-						CHECK_RESULT(vkCreateFramebuffer(info->device, &createInfo, nullptr, &framebuffers[i]))
-					}
-				}
-
 				//Semaphores
 				{
 					imageAvailableSemaphores.Resize(info->framesInFlightCount);
-					submitSemaphores.Resize(info->framesInFlightCount);
+					presentAvailableSemaphores.Resize(info->framesInFlightCount);
 
 					VkSemaphoreCreateInfo createInfo
 					{
@@ -623,7 +549,7 @@
 					for (ULInt i = 0; i < info->framesInFlightCount; i++)
 					{
 						CHECK_RESULT(vkCreateSemaphore(info->device, &createInfo, nullptr, &imageAvailableSemaphores[i]));
-						CHECK_RESULT(vkCreateSemaphore(info->device, &createInfo, nullptr, &submitSemaphores[i]));
+						CHECK_RESULT(vkCreateSemaphore(info->device, &createInfo, nullptr, &presentAvailableSemaphores[i]));
 					}
 				}
 
@@ -672,29 +598,229 @@
 					vkDestroyFence(info.device, fences[i], nullptr);
 
 					vkDestroySemaphore(info.device, imageAvailableSemaphores[i], nullptr);
-					vkDestroySemaphore(info.device, submitSemaphores[i], nullptr);
+					vkDestroySemaphore(info.device, presentAvailableSemaphores[i], nullptr);
 				}
 
-				for (auto& framebuffer : framebuffers)
-					vkDestroyFramebuffer(info.device, framebuffer, nullptr);
+				DisposeSizingObjects();
 
 				vkFreeCommandBuffers(info.device, commandPool, commandBuffers.Length(), commandBuffers.Data());
 				vkDestroyCommandPool(info.device, commandPool, nullptr);
 				vkDestroyPipelineLayout(info.device, pipelineLayout, nullptr);
 				vkDestroyPipeline(info.device, pipeline, nullptr);
-				for (auto& imageView : imageViews)
-					vkDestroyImageView(info.device, imageView, nullptr);
 				vkDestroyRenderPass(info.device, renderPass, nullptr);
+			}
+
+			void VulkanRenderer::CreateSizingObjects()
+			{
+				uint32_t count = 0;
+
+				//Swapchain
+				{
+					VkSwapchainCreateInfoKHR createInfo
+					{
+						STRUCTURE_TYPE(SWAPCHAIN_CREATE_INFO_KHR),								//sType
+						nullptr,																//pNext
+						0,																		//flags
+						info.surface,															//surface
+						info.framesInFlightCount,												//minImageCount
+						surfaceInfo.format.format,												//imageFormat
+						surfaceInfo.format.colorSpace,											//imageColorSpace
+						surfaceInfo.capabilities.currentExtent,									//imageExtent
+						1,																		//imageArrayLayers
+						VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,				//imageUsage
+						VkSharingMode::VK_SHARING_MODE_EXCLUSIVE,								//imageSharingMode
+						0,																		//queueFamilyIndexCount
+						nullptr,																//pQueueFamilyIndices
+						VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,	//preTransform
+						VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,			//compositeAlpha
+						info.presentMode,														//presentMode
+						true,																	//clipped
+						nullptr																	//oldSwapchain
+					};
+
+					CHECK_RESULT(vkCreateSwapchainKHR(info.device, &createInfo, nullptr, &swapchain));
+				}
+
+				//ImageViews
+				{
+					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, swapchain, &count, nullptr));
+					DynamicArray<VkImage> images(count);
+					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, swapchain, &count, images.Data()));
+
+					imageViews.Resize(count);
+
+					for (uint32_t i = 0; i < count; i++)
+					{
+						VkImageViewCreateInfo createInfo
+						{
+							STRUCTURE_TYPE(IMAGE_VIEW_CREATE_INFO),					//sType
+							nullptr,												//pNext
+							0,														//flags
+							images[i],												//image
+							VkImageViewType::VK_IMAGE_VIEW_TYPE_2D,					//viewType
+							surfaceInfo.format.format,								//format
+							{														//components
+								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//r
+								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//g
+								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//b
+								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY		//a
+							},
+							{														//subresourceRange
+								VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,		//aspectMask
+								0,														//baseMipLevel
+								1,														//levelCount
+								0,														//baseArrayLayer
+								1														//layerCount
+							}
+						};
+
+						CHECK_RESULT(vkCreateImageView(info.device, &createInfo, nullptr, &imageViews[i]));
+					}
+				}
+
+				//Framebuffers
+				{
+					framebuffers.Resize(info.framesInFlightCount);
+
+					for (ULInt i = 0; i < imageViews.Length(); i++)
+					{
+						VkFramebufferCreateInfo createInfo
+						{
+							STRUCTURE_TYPE(FRAMEBUFFER_CREATE_INFO),		//sType;
+							nullptr,										//pNext;
+							0,												//flags;
+							renderPass,										//renderPass;
+							1,												//attachmentCount
+							&imageViews[i],									//pAttachments;
+							surfaceInfo.capabilities.currentExtent.width,	//width;
+							surfaceInfo.capabilities.currentExtent.height,	//height;
+							1												//layers;
+						};
+
+						CHECK_RESULT(vkCreateFramebuffer(info.device, &createInfo, nullptr, &framebuffers[i]))
+					}
+				}
+			}
+
+			void VulkanRenderer::DisposeSizingObjects()
+			{
+				for (uint32_t i = 0; i < info.framesInFlightCount; i++)
+				{
+					vkDestroyFramebuffer(info.device, framebuffers[i], nullptr);
+
+					vkDestroyImageView(info.device, imageViews[i], nullptr);
+				}
+
 				vkDestroySwapchainKHR(info.device, swapchain, nullptr);
+			}
+
+			void VulkanRenderer::RecreateSizingObjects()
+			{
+				vkDeviceWaitIdle(info.device);
+				vkWaitForFences(info.device, fences.Length(), fences.Data(), true, (ULInt)~0);
+
+				vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info.physicalDevice, info.surface, &surfaceInfo.capabilities);
+
+				dynamicData.viewport.width = surfaceInfo.capabilities.currentExtent.width;
+				dynamicData.viewport.height = surfaceInfo.capabilities.currentExtent.height;
+
+				dynamicData.scissor.extent = surfaceInfo.capabilities.currentExtent;
+
+				DisposeSizingObjects();
+				CreateSizingObjects();
+			}
+
+			void VulkanRenderer::ResetCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& index)
+			{
+				VkCommandBufferBeginInfo beginInfo
+				{
+					STRUCTURE_TYPE(COMMAND_BUFFER_BEGIN_INFO),	//sType
+					nullptr,									//pNext
+					0,											//flags
+					nullptr										//pInheritanceInfo
+				};
+
+				vkBeginCommandBuffer(commandBuffer, &beginInfo);
+				{
+					VkClearValue clearValue{};
+					clearValue.color = { 0.0f, 0.0f, 1.0f, 1.0f };
+
+					VkRenderPassBeginInfo renderPassBeginInfo
+					{
+						STRUCTURE_TYPE(RENDER_PASS_BEGIN_INFO),		//sType
+						nullptr,									//pNext
+						renderPass,									//renderPass
+						framebuffers[index],						//framebuffer
+						{											//renderArea
+							{									//offset
+								dynamicData.viewport.x,		//x
+								dynamicData.viewport.y		//y
+							},
+							{									//extent
+								dynamicData.viewport.width,	//width
+								dynamicData.viewport.height	//height
+							}
+						},
+						1,											//clearValueCount
+						&clearValue									//pClearValues
+					};
+
+					vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
+					{
+
+					}
+					vkCmdEndRenderPass(commandBuffer);
+				}
+				vkEndCommandBuffer(commandBuffer);
 			}
 
 			void VulkanRenderer::Render()
 			{
+				vkWaitForFences(info.device, 1, &fences[currentFrame], false, (ULInt)~0);
+				vkResetFences(info.device, 1, &fences[currentFrame]);
 
+				uint32_t imageIndex = 0;
+				VkResult result = vkAcquireNextImageKHR(info.device, swapchain, (ULInt)~0, imageAvailableSemaphores[currentFrame], nullptr, &imageIndex);
+
+				ResetCommandBuffer(commandBuffers[imageIndex], imageIndex);
+
+				VkPipelineStageFlags waitDstStageMask = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+				VkSubmitInfo submitInfo
+				{
+					STRUCTURE_TYPE(SUBMIT_INFO),				//sType
+					nullptr,									//pNext
+					1,											//waitSemaphoreCount
+					&imageAvailableSemaphores[imageIndex],		//pWaitSemaphores
+					&waitDstStageMask,							//pWaitDstStageMask
+					1,											//commandBufferCount
+					&commandBuffers[imageIndex],				//pCommandBuffers
+					1,											//signalSemaphoreCount
+					&presentAvailableSemaphores[imageIndex]		//pSignalSemaphores
+				};
+
+				vkQueueSubmit(info.queue, 1, &submitInfo, fences[imageIndex]);
+
+				VkPresentInfoKHR presentInfo
+				{
+					STRUCTURE_TYPE(PRESENT_INFO_KHR),			//sType
+					nullptr,									//pNext
+					1,											//waitSemaphoreCount
+					& presentAvailableSemaphores[imageIndex],	//pWaitSemaphores
+					1,											//swapchainCount
+					&swapchain,									//pSwapchains
+					&imageIndex,								//pImageIndices
+					nullptr										//pResults
+				};
+
+				result = vkQueuePresentKHR(info.queue, &presentInfo);
+
+				currentFrame = (currentFrame + 1) % info.framesInFlightCount;
 			}
 
-			void VulkanRenderer::Resize(const ULInt& newWidth, const ULInt& newHeight)
+			void VulkanRenderer::Resize()
 			{
+				RecreateSizingObjects();
 			}
 		}
 	}
