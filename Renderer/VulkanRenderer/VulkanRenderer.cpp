@@ -33,8 +33,8 @@
 			Collections::DynamicArray<VkSemaphore> VulkanRenderer::presentAvailableSemaphores;
 			Collections::DynamicArray<VkFence> VulkanRenderer::fences;
 
-			VulkanRenderer::VertexBuffer VulkanRenderer::vertexBuffer = {};
-			VulkanRenderer::IndexBuffer VulkanRenderer::indexBuffer = {};
+			VulkanRenderer::Buffer VulkanRenderer::vertexBuffer = {};
+			VulkanRenderer::Buffer VulkanRenderer::indexBuffer = {};
 			VulkanRenderer::DynamicData VulkanRenderer::dynamicData = {};
 
 			uint32_t VulkanRenderer::currentFrame = 0;
@@ -71,7 +71,7 @@
 				return ~0;
 			}
 
-			VkMemoryRequirements VulkanRenderer::CreateBuffer(VkBuffer& buffer, VkDeviceMemory& memory, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags)
+			VkMemoryRequirements VulkanRenderer::CreateBuffer(Buffer& buffer, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
 				//Buffer
 				{
@@ -87,11 +87,11 @@
 						nullptr										//pQueueFamilyIndices
 					};
 
-					CHECK_RESULT(vkCreateBuffer(info.device, &createInfo, nullptr, &buffer));
+					CHECK_RESULT(vkCreateBuffer(info.device, &createInfo, nullptr, &buffer.buffer));
 				}
 
 				VkMemoryRequirements memoryRequirements;
-				vkGetBufferMemoryRequirements(info.device, buffer, &memoryRequirements);
+				vkGetBufferMemoryRequirements(info.device, buffer.buffer, &memoryRequirements);
 
 				//DeviceMemory
 				{
@@ -103,10 +103,10 @@
 						FindMemoryIndex(memoryRequirements.memoryTypeBits, memoryPropertyFlags)	//memoryTypeIndex
 					};
 
-					CHECK_RESULT(vkAllocateMemory(info.device, &allocateInfo, nullptr, &memory));
+					CHECK_RESULT(vkAllocateMemory(info.device, &allocateInfo, nullptr, &buffer.memory));
 				}
 
-				CHECK_RESULT(vkBindBufferMemory(info.device, buffer, memory, 0));
+				CHECK_RESULT(vkBindBufferMemory(info.device, buffer.buffer, buffer.memory, 0));
 
 				return memoryRequirements;
 			}
@@ -591,7 +591,7 @@
 
 				//VertexBuffer
 				{
-					CreateBuffer(vertexBuffer.buffer, vertexBuffer.memory, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+					CreateBuffer(vertexBuffer, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 					void* data;
 					vkMapMemory(info->device, vertexBuffer.memory, 0, sizeof(Vertex) * vertices.Length(), 0, &data);
@@ -603,7 +603,7 @@
 
 				//IndexBuffer
 				{
-					CreateBuffer(indexBuffer.buffer, indexBuffer.memory, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+					CreateBuffer(indexBuffer, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 					void* data;
 					vkMapMemory(info->device, indexBuffer.memory, 0, sizeof(uint32_t) * indices.Length(), 0, &data);

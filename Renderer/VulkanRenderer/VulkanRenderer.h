@@ -36,17 +36,14 @@
 				static Collections::DynamicArray<VkSemaphore> presentAvailableSemaphores;
 				static Collections::DynamicArray<VkFence> fences;
 			private:
-				static struct VertexBuffer
+				struct Buffer
 				{
 					VkBuffer buffer;
 					VkDeviceMemory memory;
-				}vertexBuffer;
-			private:
-				static struct IndexBuffer
-				{
-					VkBuffer buffer;
-					VkDeviceMemory memory;
-				}indexBuffer;
+				};
+
+				static Buffer vertexBuffer;
+				static Buffer indexBuffer;
 			private:
 				static uint32_t currentFrame;
 			private:
@@ -57,7 +54,7 @@
 				}dynamicData;
 			private:
 				static uint32_t FindMemoryIndex(const uint32_t& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags);
-				static VkMemoryRequirements CreateBuffer(VkBuffer& buffer, VkDeviceMemory& memory, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags);
+				static VkMemoryRequirements CreateBuffer(Buffer& buffer, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags);
 			private:
 				static void ResetCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& index);
 			private:
