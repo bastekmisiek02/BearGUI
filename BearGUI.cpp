@@ -11,9 +11,7 @@ namespace Bear
 		void BearGUI::Init(Window* window, void* data)
 		{
 			if (data)
-			{
 				Renderer::Init(data);
-			}
 			else
 				throw Exception::DataNotPass;
 		}
