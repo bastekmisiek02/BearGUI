@@ -719,6 +719,8 @@
 				vkDeviceWaitIdle(info.device);
 				vkWaitForFences(info.device, fences.Length(), fences.Data(), true, (ULInt)~0);
 
+				currentFrame = 0;
+
 				vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info.physicalDevice, info.surface, &surfaceInfo.capabilities);
 
 				dynamicData.viewport.width = surfaceInfo.capabilities.currentExtent.width;
@@ -806,7 +808,7 @@
 					STRUCTURE_TYPE(PRESENT_INFO_KHR),			//sType
 					nullptr,									//pNext
 					1,											//waitSemaphoreCount
-					& presentAvailableSemaphores[imageIndex],	//pWaitSemaphores
+					&presentAvailableSemaphores[imageIndex],	//pWaitSemaphores
 					1,											//swapchainCount
 					&swapchain,									//pSwapchains
 					&imageIndex,								//pImageIndices
