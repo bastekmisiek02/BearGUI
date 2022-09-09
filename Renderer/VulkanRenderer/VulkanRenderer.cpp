@@ -39,6 +39,27 @@
 
 			uint32_t VulkanRenderer::currentFrame = 0;
 
+			static const Collections::DynamicArray<Vertex> vertices
+			{
+				{
+					{0.0f, -1.0f},
+					{0.0f, 1.0f, 0.0f, 1.0f}
+				},
+				{
+					{1.0f, 1.0f},
+					{0.0f, 1.0f, 0.0f, 1.0f}
+				},
+				{
+					{-1.0f, 1.0f},
+					{0.0f, 1.0f, 0.0f, 1.0f}
+				}
+			};
+
+			static const Collections::DynamicArray<uint32_t> indices
+			{
+				0, 1, 2
+			};
+
 			uint32_t VulkanRenderer::FindMemoryIndex(const uint32_t& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
 				for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
@@ -571,11 +592,25 @@
 				//VertexBuffer
 				{
 					CreateBuffer(vertexBuffer.buffer, vertexBuffer.memory, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+					void* data;
+					vkMapMemory(info->device, vertexBuffer.memory, 0, sizeof(Vertex) * vertices.Length(), 0, &data);
+					{
+						std::memcpy(data, (const void*)vertices.Data(), sizeof(Vertex)* vertices.Length());
+					}
+					vkUnmapMemory(info->device, vertexBuffer.memory);
 				}
 
 				//IndexBuffer
 				{
 					CreateBuffer(indexBuffer.buffer, indexBuffer.memory, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+					void* data;
+					vkMapMemory(info->device, indexBuffer.memory, 0, sizeof(uint32_t) * indices.Length(), 0, &data);
+					{
+						std::memcpy(data, (const void*)indices.Data(), sizeof(uint32_t) * indices.Length());
+					}
+					vkUnmapMemory(info->device, indexBuffer.memory);
 				}
 			}
 
@@ -745,7 +780,9 @@
 				vkBeginCommandBuffer(commandBuffer, &beginInfo);
 				{
 					VkClearValue clearValue{};
-					clearValue.color = { 0.0f, 0.0f, 1.0f, 1.0f };
+					clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+					VkDeviceSize offset = 0;
 
 					VkRenderPassBeginInfo renderPassBeginInfo
 					{
@@ -769,7 +806,13 @@
 
 					vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
 					{
+						vkCmdBindPipeline(commandBuffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+						vkCmdSetViewport(commandBuffer, 0, 1, &dynamicData.viewport);
+						vkCmdSetScissor(commandBuffer, 0, 1, &dynamicData.scissor);
 
+						vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VkIndexType::VK_INDEX_TYPE_UINT32);
+						vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, &offset);
+						vkCmdDrawIndexed(commandBuffer, indices.Length(), 1, 0, 0, 0);
 					}
 					vkCmdEndRenderPass(commandBuffer);
 				}
