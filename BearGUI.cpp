@@ -49,6 +49,8 @@ namespace Bear
 			//		}
 			//	}
 			//}
+
+			Render();
 		}
 
 		void BearGUI::Clean()
