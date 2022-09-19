@@ -30,7 +30,6 @@ namespace Bear
 		{
 			VkPhysicalDevice physicalDevice;
 			VkDevice device;
-			ULInt deviceQueueFamilyIndex;
 			VkQueue queue;
 			VkSurfaceKHR surface;
 			VkSwapchainKHR swapchain;
