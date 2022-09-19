@@ -6,9 +6,9 @@ namespace Bear
 {
 	namespace GUI
 	{
-		DynamicArray<Base*> BearGUI::objects;
+		DynamicArray<Base*> GUI::objects;
 
-		void BearGUI::Init(Window* window, void* data)
+		void GUI::Init(Window* window, void* data)
 		{
 			if (data)
 				Renderer::Init(data);
@@ -16,12 +16,12 @@ namespace Bear
 				throw Exception::DataNotPass;
 		}
 
-		void BearGUI::Render(void* data)
+		void GUI::Render(void* data)
 		{
 			Renderer::Render(data);
 		}
 
-		void BearGUI::Update()
+		void GUI::Update()
 		{
 			//for (auto& obj : objects)
 			//{
@@ -51,7 +51,7 @@ namespace Bear
 			//}
 		}
 
-		void BearGUI::Clean()
+		void GUI::Clean()
 		{
 			while (objects.Length())
 				objects[0]->~Base();
@@ -61,7 +61,7 @@ namespace Bear
 			Renderer::Dispose();
 		}
 
-		void BearGUI::Resize(const ULInt& newWidth, const ULInt& newHeight)
+		void GUI::Resize(const ULInt& newWidth, const ULInt& newHeight)
 		{
 			Renderer::Resize(newWidth, newHeight);
 		}

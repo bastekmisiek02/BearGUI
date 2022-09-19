@@ -8,7 +8,7 @@ namespace Bear
 {
 	namespace GUI
 	{
-		class BearGUI
+		class GUI
 		{
 		private:
 			friend class Base;

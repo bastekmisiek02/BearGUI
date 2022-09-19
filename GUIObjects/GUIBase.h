@@ -20,7 +20,7 @@ namespace Bear
 		class Base
 		{
 		private:
-			friend class BearGUI;
+			friend class GUI;
 		private:
 			bool isDestroyed;
 		protected:

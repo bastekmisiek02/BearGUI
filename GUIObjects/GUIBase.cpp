@@ -10,7 +10,7 @@ namespace Bear
 		Base::Base()
 			: parent(nullptr), position(), color({ 0.0f, 0.0f, 0.0f, 1.0f }), text(), name(), isVisible(false), /*isPointerOnObject(false),*/ anchor(Anchor::Center | Anchor::Mid), textAlign(Anchor::Center | Anchor::Mid), currentColor(&color), isDestroyed(false)
 		{
-			BearGUI::objects.Add(this);
+			GUI::objects.Add(this);
 		}
 
 		Base::Base(Base* parent, const GraphicsMath::IVec2& position, const GraphicsMath::Vec4& color, const Collections::String& text, const char& anchor, const char& textAlign, const Collections::String& name)
@@ -19,7 +19,7 @@ namespace Bear
 			if (parent)
 				parent->childrens.Add(this);
 
-			BearGUI::objects.Add(this);
+			GUI::objects.Add(this);
 		}
 		
 		Base::~Base()
@@ -41,7 +41,7 @@ namespace Bear
 		
 			childrens.Clear();
 		
-			BearGUI::objects.Remove(this);
+			GUI::objects.Remove(this);
 
 			isDestroyed = true;
 		}
