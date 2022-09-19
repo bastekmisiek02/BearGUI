@@ -45,14 +45,14 @@
 				}
 			};
 
-			static const Collections::DynamicArray<uint32_t> indices
+			static const Collections::DynamicArray<UInt> indices
 			{
 				0, 1, 2
 			};
 
-			uint32_t VulkanRenderer::FindMemoryIndex(const uint32_t& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
+			UInt VulkanRenderer::FindMemoryIndex(const UInt& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
-				for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+				for (UInt i = 0; i < memoryProperties.memoryTypeCount; i++)
 				{
 					if ((memoryType & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & memoryPropertyFlags))
 						return i;
@@ -61,7 +61,7 @@
 				return ~0;
 			}
 
-			VkMemoryRequirements VulkanRenderer::CreateBuffer(Buffer& buffer, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags)
+			VkMemoryRequirements VulkanRenderer::CreateBuffer(Buffer& buffer, const ULInt& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
 				//Buffer
 				{
@@ -111,7 +111,7 @@
 			{
 				VulkanRenderer::info = *info;
 
-				uint32_t count = 0;
+				UInt count = 0;
 
 				//PhysicalDevice
 				{
@@ -254,7 +254,7 @@
 								oColor = iColor;
 							}
 						*/
-						constexpr uint32_t vertCode[] =
+						constexpr UInt vertCode[] =
 						{
 							0x07230203, 0x00010000, 0x0008000a, 0x0000001f, 0x00000000, 0x00020011, 0x00000001, 0x0006000b,
 							0x00000001, 0x4c534c47, 0x6474732e, 0x3035342e, 0x00000000, 0x0003000e, 0x00000000, 0x00000001,
@@ -304,7 +304,7 @@
 							}
 						*/
 
-						constexpr uint32_t fragCode[] =
+						constexpr UInt fragCode[] =
 						{
 							0x07230203, 0x00010000, 0x0008000a, 0x0000000d, 0x00000000, 0x00020011, 0x00000001, 0x0006000b,
 							0x00000001, 0x4c534c47, 0x6474732e, 0x3035342e, 0x00000000, 0x0003000e, 0x00000000, 0x00000001,
@@ -539,9 +539,9 @@
 					CreateBuffer(indexBuffer, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 					void* data;
-					vkMapMemory(info->device, indexBuffer.memory, 0, sizeof(uint32_t) * indices.Length(), 0, &data);
+					vkMapMemory(info->device, indexBuffer.memory, 0, sizeof(UInt) * indices.Length(), 0, &data);
 					{
-						std::memcpy(data, (const void*)indices.Data(), sizeof(uint32_t) * indices.Length());
+						std::memcpy(data, (const void*)indices.Data(), sizeof(UInt) * indices.Length());
 					}
 					vkUnmapMemory(info->device, indexBuffer.memory);
 				}
@@ -563,7 +563,7 @@
 
 			void VulkanRenderer::CreateSizingObjects()
 			{
-				uint32_t count = 0;
+				UInt count = 0;
 
 				//ImageViews
 				{
@@ -596,7 +596,7 @@
 						}
 					};
 
-					for (uint32_t i = 0; i < count; i++)
+					for (UInt i = 0; i < count; i++)
 					{
 						createInfo.image = images[i];
 
@@ -632,7 +632,7 @@
 
 			void VulkanRenderer::DisposeSizingObjects()
 			{
-				for (uint32_t i = 0; i < info.framesInFlightCount; i++)
+				for (UInt i = 0; i < info.framesInFlightCount; i++)
 				{
 					vkDestroyFramebuffer(info.device, framebuffers[i], nullptr);
 
@@ -660,7 +660,7 @@
 				VkClearValue clearValue{};
 				clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-				VkDeviceSize offset = 0;
+				ULInt offset = 0;
 
 				VkRenderPassBeginInfo renderPassBeginInfo
 				{

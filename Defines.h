@@ -34,7 +34,7 @@ namespace Bear
 			VkSurfaceKHR surface;
 			VkSwapchainKHR swapchain;
 
-			uint32_t framesInFlightCount;
+			UInt framesInFlightCount;
 			VkPresentModeKHR presentMode;
 		};
 
