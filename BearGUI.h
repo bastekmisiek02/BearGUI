@@ -15,9 +15,9 @@ namespace Bear
 		private:
 			static DynamicArray<Base*> objects;
 		private:
-			static void Render();
 		public:
 			static void Init(Window* window, void* data);
+			static void Render();
 			static void Update();
 			static void Clean();
 		public:
