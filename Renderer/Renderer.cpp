@@ -19,9 +19,9 @@ namespace Bear
 			VulkanRenderer::Dispose();
 		}
 		
-		void Renderer::Render()
+		void Renderer::Render(void* data)
 		{
-			VulkanRenderer::Render();
+			VulkanRenderer::Render((VulkanFrameInfo*)data);
 		}
 		
 		void Renderer::Resize(const ULInt& newWidth, const ULInt& newHeight)

@@ -17,7 +17,7 @@ namespace Bear
 		private:
 		public:
 			static void Init(Window* window, void* data);
-			static void Render();
+			static void Render(void* data);
 			static void Update();
 			static void Clean();
 		public:

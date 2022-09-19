@@ -33,9 +33,16 @@ namespace Bear
 			ULInt deviceQueueFamilyIndex;
 			VkQueue queue;
 			VkSurfaceKHR surface;
+			VkSwapchainKHR swapchain;
 
 			uint32_t framesInFlightCount;
 			VkPresentModeKHR presentMode;
+		};
+
+		struct VulkanFrameInfo
+		{
+			VkCommandBuffer commandBuffer;
+			UInt frameInFlightIndex;
 		};
 		#endif
 

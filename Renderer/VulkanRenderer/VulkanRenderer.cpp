@@ -18,26 +18,16 @@
 			VulkanRenderer::SurfaceInfo VulkanRenderer::surfaceInfo = {};
 
 			VkRenderPass VulkanRenderer::renderPass;
-			VkSwapchainKHR VulkanRenderer::swapchain;
 			Collections::DynamicArray<VkImageView> VulkanRenderer::imageViews;
 		
 			VkPipelineLayout VulkanRenderer::pipelineLayout;
 			VkPipeline VulkanRenderer::pipeline;
 		
-			VkCommandPool VulkanRenderer::commandPool;
-			Collections::DynamicArray<VkCommandBuffer> VulkanRenderer::commandBuffers;
-		
 			Collections::DynamicArray<VkFramebuffer> VulkanRenderer::framebuffers;
-		
-			Collections::DynamicArray<VkSemaphore> VulkanRenderer::imageAvailableSemaphores;
-			Collections::DynamicArray<VkSemaphore> VulkanRenderer::presentAvailableSemaphores;
-			Collections::DynamicArray<VkFence> VulkanRenderer::fences;
 
 			VulkanRenderer::Buffer VulkanRenderer::vertexBuffer = {};
 			VulkanRenderer::Buffer VulkanRenderer::indexBuffer = {};
 			VulkanRenderer::DynamicData VulkanRenderer::dynamicData = {};
-
-			uint32_t VulkanRenderer::currentFrame = 0;
 
 			static const Collections::DynamicArray<Vertex> vertices
 			{
@@ -166,11 +156,11 @@
 						0,															//flags
 						surfaceInfo.format.format,									//format
 						VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,				//samples
-						VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_CLEAR,			//loadOp
+						VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD,				//loadOp
 						VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE,			//storeOp
 						VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE,		//stencilLoadOp
 						VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE,		//stencilStoreOp
-						VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED,					//initialLayout
+						VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,				//initialLayout
 						VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR				//finalLayout
 					};
 
@@ -242,8 +232,8 @@
 					}
 
 					constexpr char shaderCount = 2;
-					VkPipelineShaderStageCreateInfo stages[shaderCount];
-					VkShaderModule shaderModules[shaderCount];
+					VkPipelineShaderStageCreateInfo stages[shaderCount]{};
+					VkShaderModule shaderModules[shaderCount]{};
 
 					//Shaders
 					{
@@ -331,7 +321,7 @@
 							0x0000000b, 0x0003003e, 0x00000009, 0x0000000c, 0x000100fd, 0x00010038
 						};
 
-						VkShaderModuleCreateInfo shaderCreateInfos[shaderCount];
+						VkShaderModuleCreateInfo shaderCreateInfos[shaderCount]{};
 						shaderCreateInfos[0].codeSize = sizeof(vertCode);
 						shaderCreateInfos[0].pCode = vertCode;
 
@@ -415,7 +405,7 @@
 
 					VkRect2D scissor
 					{
-						{										//offset
+						{												//offset
 							0,	//x
 							0	//y
 						},
@@ -532,69 +522,6 @@
 						vkDestroyShaderModule(info->device, shaderModules[i], nullptr);
 				}
 
-				//CommandPool
-				{
-					VkCommandPoolCreateInfo createInfo
-					{
-						STRUCTURE_TYPE(COMMAND_POOL_CREATE_INFO),										//sType
-						nullptr,																		//pNext
-						VkCommandPoolCreateFlagBits::VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,	//flags
-						info->deviceQueueFamilyIndex													//queueFamilyIndex
-					};
-
-					CHECK_RESULT(vkCreateCommandPool(info->device, &createInfo, nullptr, &commandPool));
-				}
-
-				//CommandBuffer
-				{
-					commandBuffers.Resize(info->framesInFlightCount);
-
-					VkCommandBufferAllocateInfo allocateInfo
-					{
-						STRUCTURE_TYPE(COMMAND_BUFFER_ALLOCATE_INFO),			//sType
-						nullptr,												//pNext
-						commandPool,											//commandPool
-						VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_PRIMARY,	//level
-						info->framesInFlightCount								//commandBufferCount
-					};
-
-					CHECK_RESULT(vkAllocateCommandBuffers(info->device, &allocateInfo, commandBuffers.Data()));
-				}
-
-				//Semaphores
-				{
-					imageAvailableSemaphores.Resize(info->framesInFlightCount);
-					presentAvailableSemaphores.Resize(info->framesInFlightCount);
-
-					VkSemaphoreCreateInfo createInfo
-					{
-						STRUCTURE_TYPE(SEMAPHORE_CREATE_INFO),	//sType
-						nullptr,								//pNext
-						0										//flags
-					};
-
-					for (ULInt i = 0; i < info->framesInFlightCount; i++)
-					{
-						CHECK_RESULT(vkCreateSemaphore(info->device, &createInfo, nullptr, &imageAvailableSemaphores[i]));
-						CHECK_RESULT(vkCreateSemaphore(info->device, &createInfo, nullptr, &presentAvailableSemaphores[i]));
-					}
-				}
-
-				//Fences
-				{
-					fences.Resize(info->framesInFlightCount);
-
-					VkFenceCreateInfo createInfo
-					{
-						STRUCTURE_TYPE(FENCE_CREATE_INFO),						//sType
-						nullptr,												//pNext
-						VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT		//flags
-					};
-
-					for (ULInt i = 0; i < info->framesInFlightCount; i++)
-						CHECK_RESULT(vkCreateFence(info->device, &createInfo, nullptr, &fences[i]));
-				}
-
 				//VertexBuffer
 				{
 					CreateBuffer(vertexBuffer, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -602,7 +529,7 @@
 					void* data;
 					vkMapMemory(info->device, vertexBuffer.memory, 0, sizeof(Vertex) * vertices.Length(), 0, &data);
 					{
-						std::memcpy(data, (const void*)vertices.Data(), sizeof(Vertex)* vertices.Length());
+						std::memcpy(data, (const void*)vertices.Data(), sizeof(Vertex) * vertices.Length());
 					}
 					vkUnmapMemory(info->device, vertexBuffer.memory);
 				}
@@ -627,18 +554,8 @@
 				DestroyBuffer(indexBuffer);
 				DestroyBuffer(vertexBuffer);
 
-				for (ULInt i = 0; i < info.framesInFlightCount; i++)
-				{
-					vkDestroyFence(info.device, fences[i], nullptr);
-
-					vkDestroySemaphore(info.device, imageAvailableSemaphores[i], nullptr);
-					vkDestroySemaphore(info.device, presentAvailableSemaphores[i], nullptr);
-				}
-
 				DisposeSizingObjects();
 
-				vkFreeCommandBuffers(info.device, commandPool, commandBuffers.Length(), commandBuffers.Data());
-				vkDestroyCommandPool(info.device, commandPool, nullptr);
 				vkDestroyPipelineLayout(info.device, pipelineLayout, nullptr);
 				vkDestroyPipeline(info.device, pipeline, nullptr);
 				vkDestroyRenderPass(info.device, renderPass, nullptr);
@@ -648,65 +565,40 @@
 			{
 				uint32_t count = 0;
 
-				//Swapchain
-				{
-					VkSwapchainCreateInfoKHR createInfo
-					{
-						STRUCTURE_TYPE(SWAPCHAIN_CREATE_INFO_KHR),								//sType
-						nullptr,																//pNext
-						0,																		//flags
-						info.surface,															//surface
-						info.framesInFlightCount,												//minImageCount
-						surfaceInfo.format.format,												//imageFormat
-						surfaceInfo.format.colorSpace,											//imageColorSpace
-						surfaceInfo.capabilities.currentExtent,									//imageExtent
-						1,																		//imageArrayLayers
-						VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,				//imageUsage
-						VkSharingMode::VK_SHARING_MODE_EXCLUSIVE,								//imageSharingMode
-						0,																		//queueFamilyIndexCount
-						nullptr,																//pQueueFamilyIndices
-						VkSurfaceTransformFlagBitsKHR::VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,	//preTransform
-						VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,			//compositeAlpha
-						info.presentMode,														//presentMode
-						true,																	//clipped
-						nullptr																	//oldSwapchain
-					};
-
-					CHECK_RESULT(vkCreateSwapchainKHR(info.device, &createInfo, nullptr, &swapchain));
-				}
-
 				//ImageViews
 				{
-					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, swapchain, &count, nullptr));
+					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, info.swapchain, &count, nullptr));
 					DynamicArray<VkImage> images(count);
-					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, swapchain, &count, images.Data()));
+					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, info.swapchain, &count, images.Data()));
 
 					imageViews.Resize(count);
 
+					VkImageViewCreateInfo createInfo
+					{
+						STRUCTURE_TYPE(IMAGE_VIEW_CREATE_INFO),					//sType
+						nullptr,												//pNext
+						0,														//flags
+						nullptr,												//image
+						VkImageViewType::VK_IMAGE_VIEW_TYPE_2D,					//viewType
+						surfaceInfo.format.format,								//format
+						{														//components
+							VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//r
+							VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//g
+							VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//b
+							VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY		//a
+						},
+						{														//subresourceRange
+							VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,		//aspectMask
+							0,														//baseMipLevel
+							1,														//levelCount
+							0,														//baseArrayLayer
+							1														//layerCount
+						}
+					};
+
 					for (uint32_t i = 0; i < count; i++)
 					{
-						VkImageViewCreateInfo createInfo
-						{
-							STRUCTURE_TYPE(IMAGE_VIEW_CREATE_INFO),					//sType
-							nullptr,												//pNext
-							0,														//flags
-							images[i],												//image
-							VkImageViewType::VK_IMAGE_VIEW_TYPE_2D,					//viewType
-							surfaceInfo.format.format,								//format
-							{														//components
-								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//r
-								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//g
-								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,		//b
-								VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY		//a
-							},
-							{														//subresourceRange
-								VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,		//aspectMask
-								0,														//baseMipLevel
-								1,														//levelCount
-								0,														//baseArrayLayer
-								1														//layerCount
-							}
-						};
+						createInfo.image = images[i];
 
 						CHECK_RESULT(vkCreateImageView(info.device, &createInfo, nullptr, &imageViews[i]));
 					}
@@ -716,20 +608,22 @@
 				{
 					framebuffers.Resize(info.framesInFlightCount);
 
+					VkFramebufferCreateInfo createInfo
+					{
+						STRUCTURE_TYPE(FRAMEBUFFER_CREATE_INFO),		//sType;
+						nullptr,										//pNext;
+						0,												//flags;
+						renderPass,										//renderPass;
+						1,												//attachmentCount
+						nullptr,										//pAttachments;
+						surfaceInfo.capabilities.currentExtent.width,	//width;
+						surfaceInfo.capabilities.currentExtent.height,	//height;
+						1												//layers;
+					};
+
 					for (ULInt i = 0; i < imageViews.Length(); i++)
 					{
-						VkFramebufferCreateInfo createInfo
-						{
-							STRUCTURE_TYPE(FRAMEBUFFER_CREATE_INFO),		//sType;
-							nullptr,										//pNext;
-							0,												//flags;
-							renderPass,										//renderPass;
-							1,												//attachmentCount
-							&imageViews[i],									//pAttachments;
-							surfaceInfo.capabilities.currentExtent.width,	//width;
-							surfaceInfo.capabilities.currentExtent.height,	//height;
-							1												//layers;
-						};
+						createInfo.pAttachments = &imageViews[i];
 
 						CHECK_RESULT(vkCreateFramebuffer(info.device, &createInfo, nullptr, &framebuffers[i]))
 					}
@@ -744,16 +638,11 @@
 
 					vkDestroyImageView(info.device, imageViews[i], nullptr);
 				}
-
-				vkDestroySwapchainKHR(info.device, swapchain, nullptr);
 			}
 
 			void VulkanRenderer::RecreateSizingObjects()
 			{
 				vkDeviceWaitIdle(info.device);
-				vkWaitForFences(info.device, fences.Length(), fences.Data(), true, (ULInt)~0);
-
-				currentFrame = 0;
 
 				vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info.physicalDevice, info.surface, &surfaceInfo.capabilities);
 
@@ -766,100 +655,44 @@
 				CreateSizingObjects();
 			}
 
-			void VulkanRenderer::ResetCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& index)
+			void VulkanRenderer::Render(VulkanFrameInfo* frameInfo)
 			{
-				VkCommandBufferBeginInfo beginInfo
+				VkClearValue clearValue{};
+				clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+				VkDeviceSize offset = 0;
+
+				VkRenderPassBeginInfo renderPassBeginInfo
 				{
-					STRUCTURE_TYPE(COMMAND_BUFFER_BEGIN_INFO),	//sType
+					STRUCTURE_TYPE(RENDER_PASS_BEGIN_INFO),		//sType
 					nullptr,									//pNext
-					0,											//flags
-					nullptr										//pInheritanceInfo
-				};
-
-				vkBeginCommandBuffer(commandBuffer, &beginInfo);
-				{
-					VkClearValue clearValue{};
-					clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-					VkDeviceSize offset = 0;
-
-					VkRenderPassBeginInfo renderPassBeginInfo
-					{
-						STRUCTURE_TYPE(RENDER_PASS_BEGIN_INFO),		//sType
-						nullptr,									//pNext
-						renderPass,									//renderPass
-						framebuffers[index],						//framebuffer
-						{											//renderArea
-							{									//offset
-								dynamicData.viewport.x,		//x
-								dynamicData.viewport.y		//y
-							},
-							{									//extent
-								dynamicData.viewport.width,	//width
-								dynamicData.viewport.height	//height
-							}
+					renderPass,									//renderPass
+					framebuffers[frameInfo->frameInFlightIndex],//framebuffer
+					{											//renderArea
+						{									//offset
+							dynamicData.viewport.x,		//x
+							dynamicData.viewport.y		//y
 						},
-						1,											//clearValueCount
-						&clearValue									//pClearValues
-					};
+						{									//extent
+							dynamicData.viewport.width,	//width
+							dynamicData.viewport.height	//height
+						}
+					},
+					1,											//clearValueCount
+					&clearValue									//pClearValues
+				};
 
-					vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
-					{
-						vkCmdBindPipeline(commandBuffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-						vkCmdSetViewport(commandBuffer, 0, 1, &dynamicData.viewport);
-						vkCmdSetScissor(commandBuffer, 0, 1, &dynamicData.scissor);
+				vkCmdBeginRenderPass(frameInfo->commandBuffer, &renderPassBeginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
+				{
+					vkCmdBindPipeline(frameInfo->commandBuffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+					vkCmdSetViewport(frameInfo->commandBuffer, 0, 1, &dynamicData.viewport);
+					vkCmdSetScissor(frameInfo->commandBuffer, 0, 1, &dynamicData.scissor);
 
-						vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VkIndexType::VK_INDEX_TYPE_UINT32);
-						vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, &offset);
-						vkCmdDrawIndexed(commandBuffer, indices.Length(), 1, 0, 0, 0);
-					}
-					vkCmdEndRenderPass(commandBuffer);
+					vkCmdBindIndexBuffer(frameInfo->commandBuffer, indexBuffer.buffer, 0, VkIndexType::VK_INDEX_TYPE_UINT32);
+					vkCmdBindVertexBuffers(frameInfo->commandBuffer, 0, 1, &vertexBuffer.buffer, &offset);
+					vkCmdDrawIndexed(frameInfo->commandBuffer, indices.Length(), 1, 0, 0, 0);
 				}
-				vkEndCommandBuffer(commandBuffer);
-			}
-
-			void VulkanRenderer::Render()
-			{
-				vkWaitForFences(info.device, 1, &fences[currentFrame], false, (ULInt)~0);
-				vkResetFences(info.device, 1, &fences[currentFrame]);
-
-				uint32_t imageIndex = 0;
-				VkResult result = vkAcquireNextImageKHR(info.device, swapchain, (ULInt)~0, imageAvailableSemaphores[currentFrame], nullptr, &imageIndex);
-
-				ResetCommandBuffer(commandBuffers[imageIndex], imageIndex);
-
-				VkPipelineStageFlags waitDstStageMask = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-				VkSubmitInfo submitInfo
-				{
-					STRUCTURE_TYPE(SUBMIT_INFO),				//sType
-					nullptr,									//pNext
-					1,											//waitSemaphoreCount
-					&imageAvailableSemaphores[imageIndex],		//pWaitSemaphores
-					&waitDstStageMask,							//pWaitDstStageMask
-					1,											//commandBufferCount
-					&commandBuffers[imageIndex],				//pCommandBuffers
-					1,											//signalSemaphoreCount
-					&presentAvailableSemaphores[imageIndex]		//pSignalSemaphores
-				};
-
-				vkQueueSubmit(info.queue, 1, &submitInfo, fences[imageIndex]);
-
-				VkPresentInfoKHR presentInfo
-				{
-					STRUCTURE_TYPE(PRESENT_INFO_KHR),			//sType
-					nullptr,									//pNext
-					1,											//waitSemaphoreCount
-					&presentAvailableSemaphores[imageIndex],	//pWaitSemaphores
-					1,											//swapchainCount
-					&swapchain,									//pSwapchains
-					&imageIndex,								//pImageIndices
-					nullptr										//pResults
-				};
-
-				result = vkQueuePresentKHR(info.queue, &presentInfo);
-
-				currentFrame = (currentFrame + 1) % info.framesInFlightCount;
+				vkCmdEndRenderPass(frameInfo->commandBuffer);
 			}
 
 			void VulkanRenderer::Resize()

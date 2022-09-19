@@ -18,7 +18,7 @@ namespace Bear
 			static void Init(void* data);
 			static void Dispose();
 		public:
-			static void Render();
+			static void Render(void* data);
 		public:
 			static void Resize(const ULInt& newWidth, const ULInt& newHeight);
 		};

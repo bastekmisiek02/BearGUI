@@ -16,9 +16,9 @@ namespace Bear
 				throw Exception::DataNotPass;
 		}
 
-		void BearGUI::Render()
+		void BearGUI::Render(void* data)
 		{
-			Renderer::Render();
+			Renderer::Render(data);
 		}
 
 		void BearGUI::Update()
