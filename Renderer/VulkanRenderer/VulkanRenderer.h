@@ -55,6 +55,7 @@
 			private:
 				static uint32_t FindMemoryIndex(const uint32_t& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags);
 				static VkMemoryRequirements CreateBuffer(Buffer& buffer, const VkDeviceSize& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags);
+				static void DestroyBuffer(Buffer& buffer);
 			private:
 				static void ResetCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& index);
 			private:

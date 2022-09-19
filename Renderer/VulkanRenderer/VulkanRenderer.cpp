@@ -111,6 +111,12 @@
 				return memoryRequirements;
 			}
 
+			void VulkanRenderer::DestroyBuffer(Buffer& buffer)
+			{
+				vkFreeMemory(info.device, buffer.memory, nullptr);
+				vkDestroyBuffer(info.device, buffer.buffer, nullptr);
+			}
+
 			void VulkanRenderer::Init(VulkanInfo* info)
 			{
 				VulkanRenderer::info = *info;
@@ -618,15 +624,8 @@
 			{
 				vkDeviceWaitIdle(info.device);
 
-				{
-					vkDestroyBuffer(info.device, indexBuffer.buffer, nullptr);
-					vkFreeMemory(info.device, indexBuffer.memory, nullptr);
-				}
-
-				{
-					vkDestroyBuffer(info.device, vertexBuffer.buffer, nullptr);
-					vkFreeMemory(info.device, vertexBuffer.memory, nullptr);
-				}
+				DestroyBuffer(indexBuffer);
+				DestroyBuffer(vertexBuffer);
 
 				for (ULInt i = 0; i < info.framesInFlightCount; i++)
 				{
