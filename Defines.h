@@ -32,7 +32,7 @@ namespace Bear
 			VkDevice device;
 			VkQueue queue;
 			VkSurfaceKHR surface;
-			VkSwapchainKHR swapchain;
+			VkSwapchainKHR* swapchain;
 
 			UInt framesInFlightCount;
 			VkPresentModeKHR presentMode;

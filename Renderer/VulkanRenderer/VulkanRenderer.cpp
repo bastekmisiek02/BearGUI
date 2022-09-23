@@ -567,9 +567,9 @@
 
 				//ImageViews
 				{
-					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, info.swapchain, &count, nullptr));
+					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, *info.swapchain, &count, nullptr));
 					DynamicArray<VkImage> images(count);
-					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, info.swapchain, &count, images.Data()));
+					CHECK_RESULT(vkGetSwapchainImagesKHR(info.device, *info.swapchain, &count, images.Data()));
 
 					imageViews.Resize(count);
 
