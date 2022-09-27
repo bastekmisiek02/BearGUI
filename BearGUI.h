@@ -14,7 +14,6 @@ namespace Bear
 			friend class Base;
 		private:
 			static DynamicArray<Base*> objects;
-		private:
 		public:
 			static void Init(Window* window, void* data);
 			static void Render(void* data);
