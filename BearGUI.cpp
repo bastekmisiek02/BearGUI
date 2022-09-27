@@ -61,7 +61,7 @@ namespace Bear
 			Renderer::Dispose();
 		}
 
-		void GUI::Resize(const ULInt& newWidth, const ULInt& newHeight)
+		void GUI::Resize(const UInt& newWidth, const UInt& newHeight)
 		{
 			Renderer::Resize(newWidth, newHeight);
 		}
