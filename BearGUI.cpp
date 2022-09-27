@@ -13,7 +13,7 @@ namespace Bear
 			if (data)
 				Renderer::Init(data);
 			else
-				throw Exception::DataNotPass;
+				throw Exception("\"data\" is null");
 		}
 
 		void GUI::Render(void* data)

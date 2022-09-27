@@ -45,9 +45,20 @@ namespace Bear
 		};
 		#endif
 
-		enum class Exception : char
+		class Exception
 		{
-			DataNotPass = 0
+		private:
+			const char* message;
+		public:
+			Exception(const char* message = nullptr)
+				: message(message) 
+			{
+			}
+
+			const char* GetMessage() const 
+			{
+				return message;
+			}
 		};
 	}
 }
