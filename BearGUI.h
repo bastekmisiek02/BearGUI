@@ -20,7 +20,7 @@ namespace Bear
 			static void Update();
 			static void Clean();
 		public:
-			static void Resize(const UInt& newWidth, const UInt& newHeight);
+			static void Resize(void* info);
 		};
 	}
 }

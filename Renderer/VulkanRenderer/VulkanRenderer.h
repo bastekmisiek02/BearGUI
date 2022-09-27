@@ -17,7 +17,6 @@
 				static struct SurfaceInfo
 				{
 					VkSurfaceFormatKHR format;
-					VkSurfaceCapabilitiesKHR capabilities;
 				}surfaceInfo;
 			private:
 				static VkRenderPass renderPass;
@@ -57,7 +56,7 @@
 			public:
 				static void Render(VulkanFrameInfo* frameInfo);
 			public:
-				static void Resize();
+				static void SetViewportInfo(VulkanViewportInfo* viewportInfo);
 			};
 		}
 	}

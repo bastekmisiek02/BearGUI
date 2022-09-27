@@ -113,6 +113,8 @@
 
 				UInt count = 0;
 
+				VkSurfaceCapabilitiesKHR surfaceCapabilities{};
+
 				//PhysicalDevice
 				{
 					vkGetPhysicalDeviceMemoryProperties(info->physicalDevice, &memoryProperties);
@@ -135,16 +137,16 @@
 						}
 					}
 
-					CHECK_RESULT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->physicalDevice, info->surface, &surfaceInfo.capabilities));
+					CHECK_RESULT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info->physicalDevice, info->surface, &surfaceCapabilities));
 
-					dynamicData.viewport.width = surfaceInfo.capabilities.currentExtent.width;
-					dynamicData.viewport.height = surfaceInfo.capabilities.currentExtent.height;
+					dynamicData.viewport.width = surfaceCapabilities.currentExtent.width;
+					dynamicData.viewport.height = surfaceCapabilities.currentExtent.height;
 					dynamicData.viewport.x = 0;
 					dynamicData.viewport.y = 0;
 					dynamicData.viewport.minDepth = 0.01f;
 					dynamicData.viewport.maxDepth = 0.01f;
 
-					dynamicData.scissor.extent = surfaceInfo.capabilities.currentExtent;
+					dynamicData.scissor.extent = surfaceCapabilities.currentExtent;
 					dynamicData.scissor.offset = { 0, 0 };
 				}
 
@@ -397,8 +399,8 @@
 					{
 						0.0f,													//x
 						0.0f,													//y
-						(float)surfaceInfo.capabilities.currentExtent.width,	//width
-						(float)surfaceInfo.capabilities.currentExtent.height,   //height
+						(float)surfaceCapabilities.currentExtent.width,			//width
+						(float)surfaceCapabilities.currentExtent.height,		//height
 						0.01f,													//minDepth
 						1.0f,													//maxDepth
 					};
@@ -409,7 +411,7 @@
 							0,	//x
 							0	//y
 						},
-						surfaceInfo.capabilities.currentExtent.width	//extent
+						surfaceCapabilities.currentExtent				//extent
 					};
 
 					VkPipelineViewportStateCreateInfo viewportState
@@ -610,15 +612,15 @@
 
 					VkFramebufferCreateInfo createInfo
 					{
-						STRUCTURE_TYPE(FRAMEBUFFER_CREATE_INFO),		//sType;
-						nullptr,										//pNext;
-						0,												//flags;
-						renderPass,										//renderPass;
-						1,												//attachmentCount
-						nullptr,										//pAttachments;
-						surfaceInfo.capabilities.currentExtent.width,	//width;
-						surfaceInfo.capabilities.currentExtent.height,	//height;
-						1												//layers;
+						STRUCTURE_TYPE(FRAMEBUFFER_CREATE_INFO),				//sType
+						nullptr,												//pNext
+						0,														//flags
+						renderPass,												//renderPass
+						1,														//attachmentCount
+						nullptr,												//pAttachments
+						dynamicData.viewport.x + dynamicData.viewport.width,	//width
+						dynamicData.viewport.y + dynamicData.viewport.height,	//height
+						1														//layers
 					};
 
 					for (ULInt i = 0; i < imageViews.Length(); i++)
@@ -643,13 +645,6 @@
 			void VulkanRenderer::RecreateSizingObjects()
 			{
 				vkDeviceWaitIdle(info.device);
-
-				vkGetPhysicalDeviceSurfaceCapabilitiesKHR(info.physicalDevice, info.surface, &surfaceInfo.capabilities);
-
-				dynamicData.viewport.width = surfaceInfo.capabilities.currentExtent.width;
-				dynamicData.viewport.height = surfaceInfo.capabilities.currentExtent.height;
-
-				dynamicData.scissor.extent = surfaceInfo.capabilities.currentExtent;
 
 				DisposeSizingObjects();
 				CreateSizingObjects();
@@ -695,8 +690,11 @@
 				vkCmdEndRenderPass(frameInfo->commandBuffer);
 			}
 
-			void VulkanRenderer::Resize()
+			void VulkanRenderer::SetViewportInfo(VulkanViewportInfo* viewportInfo)
 			{
+				dynamicData.viewport = viewportInfo->viewport;
+				dynamicData.scissor = viewportInfo->scissor;
+
 				RecreateSizingObjects();
 			}
 		}

@@ -23,10 +23,10 @@ namespace Bear
 		{
 			VulkanRenderer::Render((VulkanFrameInfo*)data);
 		}
-		
-		void Renderer::Resize(const UInt& newWidth, const UInt& newHeight)
+
+		void Renderer::SetViewportInfo(void* info)
 		{
-			VulkanRenderer::Resize();
+			VulkanRenderer::SetViewportInfo((VulkanViewportInfo*)info);
 		}
 		#endif
 	}

@@ -43,6 +43,17 @@ namespace Bear
 			VkCommandBuffer commandBuffer;
 			UInt frameInFlightIndex;
 		};
+
+		struct VulkanViewportInfo
+		{
+			VkViewport viewport;
+			/*Unused - for future use*/
+			UInt viewportIndex;
+
+			VkRect2D scissor;
+			/*Unused - for future use*/
+			UInt scissorIndex;
+		};
 		#endif
 
 		class Exception
