@@ -28,27 +28,32 @@
 			VulkanRenderer::Buffer VulkanRenderer::vertexBuffer = {};
 			VulkanRenderer::Buffer VulkanRenderer::indexBuffer = {};
 			VulkanRenderer::DynamicData VulkanRenderer::dynamicData = {};
-
-			static const Collections::DynamicArray<Vertex> vertices
-			{
+			
+			static const auto vertices = Collections::MakeArray<Vertex>
+			(
+				Vertex
 				{
 					{0.0f, -1.0f},
 					{0.0f, 1.0f, 0.0f, 1.0f}
 				},
+
+				Vertex
 				{
 					{1.0f, 1.0f},
 					{0.0f, 1.0f, 0.0f, 1.0f}
 				},
+
+				Vertex
 				{
 					{-1.0f, 1.0f},
 					{0.0f, 1.0f, 0.0f, 1.0f}
 				}
-			};
+			);
 
-			static const Collections::DynamicArray<UInt> indices
-			{
-				0, 1, 2
-			};
+			static const auto indices = Collections::MakeArray<UInt>
+			(
+				0U, 1U, 2U
+			);
 
 			UInt VulkanRenderer::FindMemoryIndex(const UInt& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
@@ -359,21 +364,24 @@
 						VkVertexInputRate::VK_VERTEX_INPUT_RATE_VERTEX		//inputRate
 					};
 
-					DynamicArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions
-					{
+					auto vertexAttributeDescriptions = Collections::MakeArray<VkVertexInputAttributeDescription>
+					(
+						VkVertexInputAttributeDescription
 						{
 							0,											//location
 							0,											//binding
 							VkFormat::VK_FORMAT_R32G32_SFLOAT,			//format
 							OFFSETOF(Vertex, position)					//offset
 						},
+
+						VkVertexInputAttributeDescription
 						{
 							1,											//location
 							0,											//binding
 							VkFormat::VK_FORMAT_R32G32B32A32_SFLOAT,	//format
 							OFFSETOF(Vertex, color)						//offset
 						}
-					};
+					);
 
 					VkPipelineVertexInputStateCreateInfo vertexInputState
 					{
@@ -528,10 +536,14 @@
 				{
 					CreateBuffer(vertexBuffer, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-					void* data;
-					vkMapMemory(info->device, vertexBuffer.memory, 0, sizeof(Vertex) * vertices.Length(), 0, &data);
+					Vertex* data = nullptr;
+					vkMapMemory(info->device, vertexBuffer.memory, 0, sizeof(Vertex) * vertices.Length(), 0, (void**)&data);
 					{
-						std::memcpy(data, (const void*)vertices.Data(), sizeof(Vertex) * vertices.Length());
+						for (auto& vertex : vertices)
+						{
+							*data = vertex;
+							data++;
+						}
 					}
 					vkUnmapMemory(info->device, vertexBuffer.memory);
 				}
@@ -540,10 +552,14 @@
 				{
 					CreateBuffer(indexBuffer, 1000, VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-					void* data;
-					vkMapMemory(info->device, indexBuffer.memory, 0, sizeof(UInt) * indices.Length(), 0, &data);
+					UInt* data = nullptr;
+					vkMapMemory(info->device, indexBuffer.memory, 0, sizeof(UInt) * indices.Length(), 0, (void**)&data);
 					{
-						std::memcpy(data, (const void*)indices.Data(), sizeof(UInt) * indices.Length());
+						for (auto& index : indices)
+						{
+							*data = index;
+							data++;
+						}
 					}
 					vkUnmapMemory(info->device, indexBuffer.memory);
 				}
