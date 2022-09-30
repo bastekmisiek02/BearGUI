@@ -21,8 +21,8 @@
 			private:
 				static VkRenderPass renderPass;
 			private:
-				static Collections::DynamicArray<VkImageView> imageViews;
-				static Collections::DynamicArray<VkFramebuffer> framebuffers;
+				static DynamicArray<VkImageView> imageViews;
+				static DynamicArray<VkFramebuffer> framebuffers;
 			private:
 				static VkPipelineLayout pipelineLayout;
 				static VkPipeline pipeline;

@@ -8,6 +8,11 @@ namespace Bear
 {
 	namespace GUI
 	{
+		ULInt Renderer::maxBufferSize = sizeof(Vertex) * 1000;
+	
+		DynamicArray<Vertex> Renderer::vertices;
+		DynamicArray<UInt> Renderer::indices;
+
 		#ifdef USE_VULKAN
 		void Renderer::Init(void* data)
 		{

@@ -95,7 +95,7 @@ namespace Bear
 			object->parent = nullptr;
 		}
 		
-		const Collections::DynamicArray<Base*>& Base::GetChildrens() const
+		const DynamicArray<Base*>& Base::GetChildrens() const
 		{
 			return childrens;
 		}

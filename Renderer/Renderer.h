@@ -14,6 +14,15 @@ namespace Bear
 
 		class Renderer
 		{
+		private:
+			static ULInt maxBufferSize;
+		private:
+			static DynamicArray<Vertex> vertices;
+			static DynamicArray<UInt> indices;
+		#ifdef USE_VULKAN
+		private:
+			friend class VulkanRenderer;
+		#endif
 		public:
 			static void Init(void* data);
 			static void Dispose();
