@@ -17,8 +17,8 @@ namespace Bear
 		private:
 			static ULInt maxBufferSize;
 		private:
-			static DynamicArray<Vertex> vertices;
-			static DynamicArray<UInt> indices;
+			static DynamicArray<DynamicArray<Vertex>*> vertices;
+			static DynamicArray<DynamicArray<UInt>*> indices;
 		#ifdef USE_VULKAN
 		private:
 			friend class VulkanRenderer;
@@ -28,6 +28,9 @@ namespace Bear
 			static void Dispose();
 		public:
 			static void Render(void* data);
+		public:
+			static void AddRenderData(DynamicArray<Vertex>* vertices, DynamicArray<UInt>* indices);
+			static void CleanRenderData();
 		public:
 			static void SetViewportInfo(void* info);
 		};

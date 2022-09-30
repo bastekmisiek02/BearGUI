@@ -23,32 +23,39 @@ namespace Bear
 
 		void GUI::Update()
 		{
-			//for (auto& obj : objects)
-			//{
-			//	if (obj->IsPointerOnObject(renderInfo->window->GetMousePosition()))
-			//	{
-			//		if (!obj->isPointerOnObject)
-			//		{
-			//			obj->isPointerOnObject = true;
-			//	
-			//			obj->OnMouseEnter();
-			//		}
-			//
-			//		if (renderInfo->window->IsKeyDown((char)Window::MouseButton::Left))
-			//			obj->OnMouseClick(Window::MouseButton::Left);
-			//		else if (renderInfo->window->IsKeyDown((char)Window::MouseButton::Right))
-			//			obj->OnMouseClick(Window::MouseButton::Right);
-			//	}
-			//	else
-			//	{
-			//		if (obj->isPointerOnObject)
-			//		{
-			//			obj->isPointerOnObject = false;
-			//	
-			//			obj->OnMouseExit();
-			//		}
-			//	}
-			//}
+			Renderer::CleanRenderData();
+
+			for (auto& obj : objects)
+			{
+				if (obj->isVisible)
+				{
+					Renderer::AddRenderData(&obj->vertices, &obj->indices);
+				}
+
+				//if (obj->IsPointerOnObject(renderInfo->window->GetMousePosition()))
+				//{
+				//	if (!obj->isPointerOnObject)
+				//	{
+				//		obj->isPointerOnObject = true;
+				//
+				//		obj->OnMouseEnter();
+				//	}
+				//
+				//	if (renderInfo->window->IsKeyDown((char)Window::MouseButton::Left))
+				//		obj->OnMouseClick(Window::MouseButton::Left);
+				//	else if (renderInfo->window->IsKeyDown((char)Window::MouseButton::Right))
+				//		obj->OnMouseClick(Window::MouseButton::Right);
+				//}
+				//else
+				//{
+				//	if (obj->isPointerOnObject)
+				//	{
+				//		obj->isPointerOnObject = false;
+				//
+				//		obj->OnMouseExit();
+				//	}
+				//}
+			}
 		}
 
 		void GUI::Clean()

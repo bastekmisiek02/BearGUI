@@ -10,8 +10,8 @@ namespace Bear
 	{
 		ULInt Renderer::maxBufferSize = sizeof(Vertex) * 1000;
 	
-		DynamicArray<Vertex> Renderer::vertices;
-		DynamicArray<UInt> Renderer::indices;
+		DynamicArray<DynamicArray<Vertex>*> Renderer::vertices;
+		DynamicArray<DynamicArray<UInt>*> Renderer::indices;
 
 		#ifdef USE_VULKAN
 		void Renderer::Init(void* data)
@@ -27,6 +27,18 @@ namespace Bear
 		void Renderer::Render(void* data)
 		{
 			VulkanRenderer::Render((VulkanFrameInfo*)data);
+		}
+
+		void Renderer::AddRenderData(DynamicArray<Vertex>* vertices, DynamicArray<UInt>* indices)
+		{
+			Renderer::vertices.Add(vertices);
+			Renderer::indices.Add(indices);
+		}
+
+		void Renderer::CleanRenderData()
+		{
+			vertices.Clear();
+			indices.Clear();
 		}
 
 		void Renderer::SetViewportInfo(void* info)
