@@ -35,10 +35,10 @@ namespace Bear
 			Renderer::indices.Add(indices);
 		}
 
-		void Renderer::CleanRenderData()
+		void Renderer::RemoveRenderData(DynamicArray<Vertex>* vertices, DynamicArray<UInt>* indices)
 		{
-			vertices.Clear();
-			indices.Clear();
+			Renderer::vertices.Remove(vertices);
+			Renderer::indices.Remove(indices);
 		}
 
 		void Renderer::SetViewportInfo(void* info)

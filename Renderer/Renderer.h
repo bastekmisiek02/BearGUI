@@ -1,17 +1,11 @@
 #pragma once
 
-#include "Defines.h"
+#include "Vertex.h"
 
 namespace Bear
 {
 	namespace GUI
 	{
-		struct Vertex
-		{
-			Vec2 position;
-			Vec4 color;
-		};
-
 		class Renderer
 		{
 		private:
@@ -30,7 +24,7 @@ namespace Bear
 			static void Render(void* data);
 		public:
 			static void AddRenderData(DynamicArray<Vertex>* vertices, DynamicArray<UInt>* indices);
-			static void CleanRenderData();
+			static void RemoveRenderData(DynamicArray<Vertex>* vertices, DynamicArray<UInt>* indices);
 		public:
 			static void SetViewportInfo(void* info);
 		};

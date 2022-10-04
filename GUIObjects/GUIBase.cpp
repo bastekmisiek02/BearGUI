@@ -22,6 +22,8 @@ namespace Bear
 				parent->childrens.Add(this);
 
 			GUI::objects.Add(this);
+
+			Renderer::AddRenderData(&vertices, &indices);
 		}
 		
 		Base::~Base()
@@ -46,6 +48,8 @@ namespace Bear
 			GUI::objects.Remove(this);
 
 			isDestroyed = true;
+
+			Renderer::RemoveRenderData(&vertices, &indices);
 		}
 		
 		void Base::OnMouseEnter()
@@ -68,11 +72,15 @@ namespace Bear
 		void Base::Hide()
 		{
 			isVisible = false;
+
+			Renderer::RemoveRenderData(&vertices, &indices);
 		}
 		
 		void Base::Show()
 		{
 			isVisible = true;
+
+			Renderer::AddRenderData(&vertices, &indices);
 		}
 		
 		Base* Base::GetParent() const

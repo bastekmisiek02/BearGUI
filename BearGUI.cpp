@@ -23,15 +23,8 @@ namespace Bear
 
 		void GUI::Update()
 		{
-			Renderer::CleanRenderData();
-
 			for (auto& obj : objects)
 			{
-				if (obj->isVisible)
-				{
-					Renderer::AddRenderData(&obj->vertices, &obj->indices);
-				}
-
 				//if (obj->IsPointerOnObject(renderInfo->window->GetMousePosition()))
 				//{
 				//	if (!obj->isPointerOnObject)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Defines.h"
+#include "Renderer/Vertex.h"
 
 namespace Bear
 {
@@ -40,7 +40,7 @@ namespace Bear
 			char anchor;
 			char textAlign;
 		protected:
-			DynamicArray<struct Vertex> vertices;
+			DynamicArray<Vertex> vertices;
 			DynamicArray<UInt> indices;
 		public:
 			Base();
