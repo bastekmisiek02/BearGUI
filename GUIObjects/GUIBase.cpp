@@ -10,13 +10,13 @@ namespace Bear
 	{
 		#ifdef BEAR_LIBRARY_INCLUDED
 		Base::Base()
-			: parent(nullptr), position(), color({ 0.0f, 0.0f, 0.0f, 1.0f }), text(), name(), isVisible(false), anchor(Anchor::Center | Anchor::Mid), textAlign(Anchor::Center | Anchor::Mid), currentColor(&color), isDestroyed(false)
+			: parent(nullptr), position(), color({ 0.0f, 0.0f, 0.0f, 1.0f }), text(), name(), isVisible(false), anchor(Anchor::Center | Anchor::Mid), textAlign(Anchor::Center | Anchor::Mid), currentColor(&color), isDestroyed(false), vertices(), indices()
 		{
 			GUI::objects.Add(this);
 		}
 
 		Base::Base(Base* parent, const GraphicsMath::IVec2& position, const GraphicsMath::Vec4& color, const Collections::String& text, const char& anchor, const char& textAlign, const Collections::String& name)
-			: parent(parent), position(position), color(color), text(text), name(name), isVisible(true), anchor(anchor), textAlign(textAlign), currentColor(&this->color), isDestroyed(false)
+			: parent(parent), position(position), color(color), text(text), name(name), isVisible(true), anchor(anchor), textAlign(textAlign), currentColor(&this->color), isDestroyed(false), vertices(), indices()
 		{
 			if (parent)
 				parent->childrens.Add(this);

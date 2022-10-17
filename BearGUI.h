@@ -3,6 +3,7 @@
 #include "Defines.h"
 
 #include "GUIObjects/GUIBase.h"
+#include "GUIObjects/Controls.h"
 
 namespace Bear
 {
