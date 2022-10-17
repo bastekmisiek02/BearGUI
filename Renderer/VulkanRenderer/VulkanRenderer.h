@@ -33,8 +33,8 @@
 					VkDeviceMemory memory;
 				};
 
-				static Buffer vertexBuffer;
-				static Buffer indexBuffer;
+				static DynamicArray<Buffer> vertexBuffers;
+				static DynamicArray<Buffer> indexBuffers;
 			private:
 				static struct DynamicData
 				{

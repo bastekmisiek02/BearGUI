@@ -25,8 +25,8 @@
 		
 			DynamicArray<VkFramebuffer> VulkanRenderer::framebuffers;
 
-			VulkanRenderer::Buffer VulkanRenderer::vertexBuffer = {};
-			VulkanRenderer::Buffer VulkanRenderer::indexBuffer = {};
+			DynamicArray<VulkanRenderer::Buffer> VulkanRenderer::vertexBuffers = {};
+			DynamicArray<VulkanRenderer::Buffer> VulkanRenderer::indexBuffers = {};
 			VulkanRenderer::DynamicData VulkanRenderer::dynamicData = {};
 
 			UInt VulkanRenderer::FindMemoryIndex(const UInt& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
@@ -508,34 +508,18 @@
 
 				//VertexBuffer
 				{
-					CreateBuffer(vertexBuffer, Renderer::maxBufferSize, VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+					vertexBuffers.Resize(info->framesInFlightCount);
 
-					//Vertex* data = nullptr;
-					//vkMapMemory(info->device, vertexBuffer.memory, 0, sizeof(Vertex) * Renderer::vertices.Length(), 0, (void**)&data);
-					//{
-					//	for (auto& vertex : Renderer::vertices)
-					//	{
-					//		*data = vertex;
-					//		data++;
-					//	}
-					//}
-					//vkUnmapMemory(info->device, vertexBuffer.memory);
+					for(auto& vertexBuffer : vertexBuffers)
+						CreateBuffer(vertexBuffer, Renderer::maxBufferSize, VkBufferUsageFlagBits::VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 				}
 
 				//IndexBuffer
 				{
-					CreateBuffer(indexBuffer, Renderer::maxBufferSize, VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+					indexBuffers.Resize(info->framesInFlightCount);
 
-					//UInt* data = nullptr;
-					//vkMapMemory(info->device, indexBuffer.memory, 0, sizeof(UInt) * Renderer::indices.Length(), 0, (void**)&data);
-					//{
-					//	for (auto& index : Renderer::indices)
-					//	{
-					//		*data = index;
-					//		data++;
-					//	}
-					//}
-					//vkUnmapMemory(info->device, indexBuffer.memory);
+					for(auto& indexBuffer : indexBuffers)
+						CreateBuffer(indexBuffer, Renderer::maxBufferSize, VkBufferUsageFlagBits::VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 				}
 			}
 
@@ -543,9 +527,11 @@
 			{
 				vkDeviceWaitIdle(info.device);
 
-				DestroyBuffer(indexBuffer);
-				DestroyBuffer(vertexBuffer);
-
+				for (ULInt i = 0; i < info.framesInFlightCount; i++)
+				{
+					DestroyBuffer(indexBuffers[i]);
+					DestroyBuffer(vertexBuffers[i]);
+				}
 				DisposeSizingObjects();
 
 				vkDestroyPipelineLayout(info.device, pipelineLayout, nullptr);
@@ -642,17 +628,46 @@
 
 			void VulkanRenderer::Render(VulkanFrameInfo* frameInfo)
 			{
+				const UInt& frameInFlightIndex = frameInfo->frameInFlightIndex;
+				const VkCommandBuffer& commandBuffer = frameInfo->commandBuffer;
+
+				{
+					Vertex* verticesData = nullptr;
+					UInt* indicesData = nullptr;
+
+					UInt currentIndex = 0;
+
+					CHECK_RESULT(vkMapMemory(info.device, vertexBuffers[frameInFlightIndex].memory, 0, VK_WHOLE_SIZE, 0, (void**)&verticesData));
+					CHECK_RESULT(vkMapMemory(info.device, indexBuffers[frameInFlightIndex].memory, 0, VK_WHOLE_SIZE, 0, (void**)&indicesData));
+					for (ULInt i = 0; i < Renderer::vertices.Length(); i++)
+					{
+						auto& vertices = Renderer::vertices[i];
+						auto& indices = Renderer::indices[i];
+
+						for (ULInt j = 0; j < vertices->Length(); j++)
+						{
+							*verticesData = (*vertices)[j];
+							*indicesData = (*indices)[j] + currentIndex;
+						}
+
+						currentIndex += vertices->Length();
+
+						verticesData++;
+						indicesData++;
+					}
+					vkUnmapMemory(info.device, vertexBuffers[frameInFlightIndex].memory);
+					vkUnmapMemory(info.device, indexBuffers[frameInFlightIndex].memory);
+				}
+
 				VkClearValue clearValue{};
 				clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-				ULInt offset = 0;
 
 				VkRenderPassBeginInfo renderPassBeginInfo
 				{
 					STRUCTURE_TYPE(RENDER_PASS_BEGIN_INFO),		//sType
 					nullptr,									//pNext
 					renderPass,									//renderPass
-					framebuffers[frameInfo->frameInFlightIndex],//framebuffer
+					framebuffers[frameInFlightIndex],			//framebuffer
 					{											//renderArea
 						{									//offset
 							dynamicData.viewport.x,		//x
@@ -667,17 +682,19 @@
 					&clearValue									//pClearValues
 				};
 
-				vkCmdBeginRenderPass(frameInfo->commandBuffer, &renderPassBeginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
-				{
-					vkCmdBindPipeline(frameInfo->commandBuffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-					vkCmdSetViewport(frameInfo->commandBuffer, 0, 1, &dynamicData.viewport);
-					vkCmdSetScissor(frameInfo->commandBuffer, 0, 1, &dynamicData.scissor);
+				ULInt offset = 0;
 
-					vkCmdBindIndexBuffer(frameInfo->commandBuffer, indexBuffer.buffer, 0, VkIndexType::VK_INDEX_TYPE_UINT32);
-					vkCmdBindVertexBuffers(frameInfo->commandBuffer, 0, 1, &vertexBuffer.buffer, &offset);
-					vkCmdDrawIndexed(frameInfo->commandBuffer, Renderer::indices.Length(), 1, 0, 0, 0);
+				vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
+				{
+					vkCmdBindPipeline(commandBuffer, VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+					vkCmdSetViewport(commandBuffer, 0, 1, &dynamicData.viewport);
+					vkCmdSetScissor(commandBuffer, 0, 1, &dynamicData.scissor);
+
+					vkCmdBindIndexBuffer(commandBuffer, indexBuffers[frameInFlightIndex].buffer, 0, VkIndexType::VK_INDEX_TYPE_UINT32);
+					vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffers[frameInFlightIndex].buffer, &offset);
+					vkCmdDrawIndexed(commandBuffer, Renderer::indices.Length(), 1, 0, 0, 0);
 				}
-				vkCmdEndRenderPass(frameInfo->commandBuffer);
+				vkCmdEndRenderPass(commandBuffer);
 			}
 
 			void VulkanRenderer::SetViewportInfo(VulkanViewportInfo* viewportInfo)

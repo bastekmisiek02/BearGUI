@@ -47,6 +47,9 @@ namespace Bear
 			Base(Base* parent, const IVec2& position, const Vec4& color, const String& text, const char& anchor = Anchor::Center | Anchor::Mid, const char& textAlign = Anchor::Center | Anchor::Mid, const String& name = "");
 			virtual ~Base();
 		protected:
+			void AddRenderData();
+			void RemoveRenderData();
+		protected:
 			virtual void OnMouseEnter();
 			virtual void OnMouseExit();
 

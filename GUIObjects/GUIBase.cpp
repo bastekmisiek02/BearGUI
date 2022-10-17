@@ -23,7 +23,7 @@ namespace Bear
 
 			GUI::objects.Add(this);
 
-			Renderer::AddRenderData(&vertices, &indices);
+			AddRenderData();
 		}
 		
 		Base::~Base()
@@ -49,6 +49,16 @@ namespace Bear
 
 			isDestroyed = true;
 
+			RemoveRenderData();
+		}
+
+		void Base::AddRenderData()
+		{
+			Renderer::AddRenderData(&vertices, &indices);
+		}
+
+		void Base::RemoveRenderData()
+		{
 			Renderer::RemoveRenderData(&vertices, &indices);
 		}
 		
@@ -73,14 +83,14 @@ namespace Bear
 		{
 			isVisible = false;
 
-			Renderer::RemoveRenderData(&vertices, &indices);
+			RemoveRenderData();
 		}
 		
 		void Base::Show()
 		{
 			isVisible = true;
 
-			Renderer::AddRenderData(&vertices, &indices);
+			AddRenderData();
 		}
 		
 		Base* Base::GetParent() const
