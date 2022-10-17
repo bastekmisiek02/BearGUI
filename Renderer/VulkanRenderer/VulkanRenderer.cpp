@@ -629,7 +629,8 @@
 			void VulkanRenderer::Render(VulkanFrameInfo* frameInfo)
 			{
 				const UInt& frameInFlightIndex = frameInfo->frameInFlightIndex;
-				const VkCommandBuffer& commandBuffer = frameInfo->commandBuffer;
+
+				UInt indexCount = 0;
 
 				{
 					Vertex* verticesData = nullptr;
@@ -639,21 +640,69 @@
 
 					CHECK_RESULT(vkMapMemory(info.device, vertexBuffers[frameInFlightIndex].memory, 0, VK_WHOLE_SIZE, 0, (void**)&verticesData));
 					CHECK_RESULT(vkMapMemory(info.device, indexBuffers[frameInFlightIndex].memory, 0, VK_WHOLE_SIZE, 0, (void**)&indicesData));
+
+					char* maxVerticesAddress = (char*)verticesData + Renderer::maxBufferSize;
+					char* maxIndicesAddress = (char*)indicesData + Renderer::maxBufferSize;
+
 					for (ULInt i = 0; i < Renderer::vertices.Length(); i++)
 					{
 						auto& vertices = Renderer::vertices[i];
 						auto& indices = Renderer::indices[i];
 
-						for (ULInt j = 0; j < vertices->Length(); j++)
 						{
-							*verticesData = (*vertices)[j];
-							*indicesData = (*indices)[j] + currentIndex;
+							//TODO: End
+							//if (((char*)verticesData + vertices->Length()) >= maxVerticesAddress)
+							//{
+							//	vkUnmapMemory(info.device, vertexBuffers[frameInFlightIndex].memory);
+							//	vkUnmapMemory(info.device, indexBuffers[frameInFlightIndex].memory);
+							//
+							//	Renderer::maxBufferSize += (sizeof(Vertex) * 1000);
+							//
+							//	DisposeBuffer(vertexBuffer);
+							//	DisposeBuffer(indexBuffer);
+							//
+							//	CreateVertexBuffer();
+							//	CreateIndexBuffer();
+							//
+							//	vkResetCommandPool(device, commandPool, VkCommandPoolResetFlagBits::VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+							//	return;
+							//}
+
+							for (ULInt j = 0; j < vertices->Length(); j++)
+							{
+								*verticesData = (*vertices)[j];
+								verticesData++;
+							}
+						}
+
+						{
+							//TODO: End
+							/*if (((char*)indexData + indices[i]->Length()) >= maxIndexAddress)
+							{
+								vkUnmapMemory(device, vertexBuffer.memory);
+								vkUnmapMemory(device, indexBuffer.memory);
+
+								maxBufferSize += 10000;
+
+								DisposeBuffer(vertexBuffer);
+								DisposeBuffer(indexBuffer);
+
+								CreateVertexBuffer();
+								CreateIndexBuffer();
+
+								vkResetCommandPool(device, commandPool, VkCommandPoolResetFlagBits::VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+								return;
+							}*/
+
+							for (ULInt j = 0; j < indices->Length(); j++)
+							{
+								*indicesData = (*indices)[j] + currentIndex;
+								indicesData++;
+							}
 						}
 
 						currentIndex += vertices->Length();
-
-						verticesData++;
-						indicesData++;
+						indexCount += indices->Length();
 					}
 					vkUnmapMemory(info.device, vertexBuffers[frameInFlightIndex].memory);
 					vkUnmapMemory(info.device, indexBuffers[frameInFlightIndex].memory);
@@ -682,6 +731,7 @@
 					&clearValue									//pClearValues
 				};
 
+				const VkCommandBuffer& commandBuffer = frameInfo->commandBuffer;
 				ULInt offset = 0;
 
 				vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
@@ -692,7 +742,7 @@
 
 					vkCmdBindIndexBuffer(commandBuffer, indexBuffers[frameInFlightIndex].buffer, 0, VkIndexType::VK_INDEX_TYPE_UINT32);
 					vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffers[frameInFlightIndex].buffer, &offset);
-					vkCmdDrawIndexed(commandBuffer, Renderer::indices.Length(), 1, 0, 0, 0);
+					vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
 				}
 				vkCmdEndRenderPass(commandBuffer);
 			}
