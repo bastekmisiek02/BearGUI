@@ -2,6 +2,8 @@
 
 #ifdef USE_VULKAN
 	#include "Renderer/VulkanRenderer/VulkanRenderer.h"
+
+	#define RENDERER VulkanRenderer
 #endif
 
 namespace Bear
@@ -13,20 +15,19 @@ namespace Bear
 		DynamicArray<DynamicArray<Vertex>*> Renderer::vertices;
 		DynamicArray<DynamicArray<UInt>*> Renderer::indices;
 
-		#ifdef USE_VULKAN
 		void Renderer::Init(void* data)
 		{
-			VulkanRenderer::Init((VulkanInfo*)data);
+			RENDERER::Init(data);
 		}
 		
 		void Renderer::Dispose()
 		{
-			VulkanRenderer::Dispose();
+			RENDERER::Dispose();
 		}
 		
 		void Renderer::Render(void* data)
 		{
-			VulkanRenderer::Render((VulkanFrameInfo*)data);
+			RENDERER::Render(data);
 		}
 
 		void Renderer::AddRenderData(DynamicArray<Vertex>* vertices, DynamicArray<UInt>* indices)
@@ -43,8 +44,7 @@ namespace Bear
 
 		void Renderer::SetViewportInfo(void* info)
 		{
-			VulkanRenderer::SetViewportInfo((VulkanViewportInfo*)info);
+			RENDERER::SetViewportInfo(info);
 		}
-		#endif
 	}
 }

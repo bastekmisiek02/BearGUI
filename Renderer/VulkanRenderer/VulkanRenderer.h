@@ -51,12 +51,12 @@
 
 				static void RecreateSizingObjects();
 			public:
-				static void Init(VulkanInfo* info);
+				static void Init(void* info);
 				static void Dispose();
 			public:
-				static void Render(VulkanFrameInfo* frameInfo);
+				static void Render(void* frameInfo);
 			public:
-				static void SetViewportInfo(VulkanViewportInfo* viewportInfo);
+				static void SetViewportInfo(void* viewportInfo);
 			};
 		}
 	}

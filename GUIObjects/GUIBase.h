@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderer/Vertex.h"
+#include "Renderer/Vertex/Vertex.h"
 
 namespace Bear
 {
