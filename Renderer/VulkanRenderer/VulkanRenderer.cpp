@@ -86,6 +86,87 @@
 				vkDestroyBuffer(info.device, buffer.buffer, nullptr);
 			}
 
+			void VulkanRenderer::CreateImage(Image& image, const ImageCreateInfo& imageCreateInfo)
+			{
+				{
+					VkImageCreateInfo createInfo
+					{
+						STRUCTURE_TYPE(IMAGE_CREATE_INFO),					//sType
+						nullptr,											//pNext
+						0,													//flags
+						imageCreateInfo.imageType,							//imageType
+						imageCreateInfo.format,								//format
+						{													//extent
+							imageCreateInfo.extent.width,						//width
+							imageCreateInfo.extent.height,						//height
+							1.0f												//depth
+						},													
+						1,													//mipLevels
+						1,													//arrayLayers
+						VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,		//samples
+						imageCreateInfo.tiling,								//tiling
+						imageCreateInfo.usage,								//usage
+						VkSharingMode::VK_SHARING_MODE_EXCLUSIVE,			//sharingMode
+						0,													//queueFamilyIndexCount
+						nullptr,											//pQueueFamilyIndices
+						VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED			//initialLayout
+					};
+
+					CHECK_RESULT(vkCreateImage(info.device, &createInfo, nullptr, &image.image));
+				}
+
+				{
+					VkImageViewCreateInfo createInfo
+					{
+						STRUCTURE_TYPE(IMAGE_VIEW_CREATE_INFO),				//sType
+						nullptr,											//pNext
+						0,													//flags
+						image.image,										//image
+						(VkImageViewType)imageCreateInfo.imageType,			//viewType
+						imageCreateInfo.format,								//format
+						{													//components
+							VkComponentSwizzle::VK_COMPONENT_SWIZZLE_R,			//r
+							VkComponentSwizzle::VK_COMPONENT_SWIZZLE_G,			//g
+							VkComponentSwizzle::VK_COMPONENT_SWIZZLE_B,			//b
+							VkComponentSwizzle::VK_COMPONENT_SWIZZLE_A,			//a
+						},
+						{													//subresourceRange
+							imageCreateInfo.aspectFlag,							//aspectMask
+							0,													//baseMipLevel
+							1,													//levelCount
+							0,													//baseArrayLayer
+							1													//layerCount
+						}
+					};
+
+					CHECK_RESULT(vkCreateImageView(info.device, &createInfo, nullptr, &image.imageView));
+				}
+
+				{
+					VkMemoryRequirements memoryRequirements{};
+					vkGetImageMemoryRequirements(info.device, image.image, &memoryRequirements);
+
+					VkMemoryAllocateInfo allocInfo
+					{
+						STRUCTURE_TYPE(MEMORY_ALLOCATE_INFO),											//sType
+						nullptr,																		//pNext
+						memoryRequirements.size,														//allocationSize
+						FindMemoryIndex(memoryRequirements.memoryTypeBits, imageCreateInfo.memoryFlag)	//memoryTypeIndex
+					};
+
+					CHECK_RESULT(vkAllocateMemory(info.device, &allocInfo, nullptr, &image.memory));
+				}
+
+				CHECK_RESULT(vkBindImageMemory(info.device, image.image, image.memory, 0));
+			}
+
+			void VulkanRenderer::DisposeImage(Image& image)
+			{
+				vkFreeMemory(info.device, image.memory, nullptr);
+				vkDestroyImageView(info.device, image.imageView, nullptr);
+				vkDestroyImage(info.device, image.image, nullptr);
+			}
+
 			void VulkanRenderer::Init(void* data)
 			{
 				VulkanInfo* info = (VulkanInfo*)data;
