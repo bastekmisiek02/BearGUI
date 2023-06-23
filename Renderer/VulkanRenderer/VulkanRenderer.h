@@ -54,6 +54,9 @@
 				static DynamicArray<Buffer> vertexBuffers;
 				static DynamicArray<Buffer> indexBuffers;
 			private:
+				static DynamicArray<Image> IDImages;
+				static Buffer IDsBuffer;
+			private:
 				static struct DynamicData
 				{
 					VkViewport viewport;
@@ -65,8 +68,8 @@
 				static VkMemoryRequirements CreateBuffer(Buffer& buffer, const ULInt& size, const VkBufferUsageFlags& bufferUsage, const VkMemoryPropertyFlags& memoryPropertyFlags);
 				static void DestroyBuffer(Buffer& buffer);
 			private:
-				static void CreateImage(Image& image, const ImageCreateInfo& imageCreateInfo);
-				static void DisposeImage(Image& image);
+				static VkMemoryRequirements CreateImage(Image& image, const ImageCreateInfo& imageCreateInfo);
+				static void DestroyImage(Image& image);
 			private:
 				static void CreateSizingObjects();
 				static void DisposeSizingObjects();

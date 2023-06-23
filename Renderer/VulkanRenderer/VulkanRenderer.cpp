@@ -27,6 +27,10 @@
 
 			DynamicArray<VulkanRenderer::Buffer> VulkanRenderer::vertexBuffers = {};
 			DynamicArray<VulkanRenderer::Buffer> VulkanRenderer::indexBuffers = {};
+
+			DynamicArray<VulkanRenderer::Image> VulkanRenderer::IDImages = {};
+			VulkanRenderer::Buffer VulkanRenderer::IDsBuffer = {};
+
 			VulkanRenderer::DynamicData VulkanRenderer::dynamicData = {};
 
 			UInt VulkanRenderer::FindMemoryIndex(const UInt& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
@@ -86,7 +90,7 @@
 				vkDestroyBuffer(info.device, buffer.buffer, nullptr);
 			}
 
-			void VulkanRenderer::CreateImage(Image& image, const ImageCreateInfo& imageCreateInfo)
+			VkMemoryRequirements VulkanRenderer::CreateImage(Image& image, const ImageCreateInfo& imageCreateInfo)
 			{
 				{
 					VkImageCreateInfo createInfo
@@ -115,6 +119,23 @@
 					CHECK_RESULT(vkCreateImage(info.device, &createInfo, nullptr, &image.image));
 				}
 
+				VkMemoryRequirements memoryRequirements{};
+				vkGetImageMemoryRequirements(info.device, image.image, &memoryRequirements);
+
+				{
+					VkMemoryAllocateInfo allocInfo
+					{
+						STRUCTURE_TYPE(MEMORY_ALLOCATE_INFO),											//sType
+						nullptr,																		//pNext
+						memoryRequirements.size,														//allocationSize
+						FindMemoryIndex(memoryRequirements.memoryTypeBits, imageCreateInfo.memoryFlag)	//memoryTypeIndex
+					};
+
+					CHECK_RESULT(vkAllocateMemory(info.device, &allocInfo, nullptr, &image.memory));
+				}
+
+				CHECK_RESULT(vkBindImageMemory(info.device, image.image, image.memory, 0));
+
 				{
 					VkImageViewCreateInfo createInfo
 					{
@@ -142,25 +163,10 @@
 					CHECK_RESULT(vkCreateImageView(info.device, &createInfo, nullptr, &image.imageView));
 				}
 
-				{
-					VkMemoryRequirements memoryRequirements{};
-					vkGetImageMemoryRequirements(info.device, image.image, &memoryRequirements);
-
-					VkMemoryAllocateInfo allocInfo
-					{
-						STRUCTURE_TYPE(MEMORY_ALLOCATE_INFO),											//sType
-						nullptr,																		//pNext
-						memoryRequirements.size,														//allocationSize
-						FindMemoryIndex(memoryRequirements.memoryTypeBits, imageCreateInfo.memoryFlag)	//memoryTypeIndex
-					};
-
-					CHECK_RESULT(vkAllocateMemory(info.device, &allocInfo, nullptr, &image.memory));
-				}
-
-				CHECK_RESULT(vkBindImageMemory(info.device, image.image, image.memory, 0));
+				return memoryRequirements;
 			}
 
-			void VulkanRenderer::DisposeImage(Image& image)
+			void VulkanRenderer::DestroyImage(Image& image)
 			{
 				vkFreeMemory(info.device, image.memory, nullptr);
 				vkDestroyImageView(info.device, image.imageView, nullptr);
@@ -214,25 +220,49 @@
 
 				//RenderPass
 				{
+					auto attachmentDescriptions = Collections::MakeArray<VkAttachmentDescription>
+					(
+						VkAttachmentDescription
+						{
+							0,															//flags
+							surfaceInfo.format.format,									//format
+							VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,				//samples
+							VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD,				//loadOp
+							VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE,			//storeOp
+							VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE,		//stencilLoadOp
+							VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE,		//stencilStoreOp
+							VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,				//initialLayout
+							VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR				//finalLayout
+						},
 
-					VkAttachmentDescription attachmentDescription
-					{
-						0,															//flags
-						surfaceInfo.format.format,									//format
-						VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,				//samples
-						VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD,				//loadOp
-						VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE,			//storeOp
-						VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE,		//stencilLoadOp
-						VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE,		//stencilStoreOp
-						VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,				//initialLayout
-						VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR				//finalLayout
-					};
+						VkAttachmentDescription
+						{
+							0,															//flags
+							VkFormat::VK_FORMAT_R32_UINT,								//format
+							VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,				//samples
+							VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_LOAD,				//loadOp
+							VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_STORE,			//storeOp
+							VkAttachmentLoadOp::VK_ATTACHMENT_LOAD_OP_DONT_CARE,		//stencilLoadOp
+							VkAttachmentStoreOp::VK_ATTACHMENT_STORE_OP_DONT_CARE,		//stencilStoreOp
+							VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,				//initialLayout
+							VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR				//finalLayout
+						}
+					);
 
-					VkAttachmentReference colorAttachmentReference
-					{
-						0,														//attachment
-						VkImageLayout::VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL	//layout
-					};
+					constexpr auto colorAttachmentReferences = Collections::MakeArray<VkAttachmentReference>
+					(
+						VkAttachmentReference
+						{
+							0,														//attachment
+							VkImageLayout::VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL	//layout
+						},
+
+						VkAttachmentReference
+						{
+							1,														//attachment
+							VkImageLayout::VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL	//layout
+						}
+					);
 
 					VkSubpassDescription subpassDescription
 					{
@@ -240,8 +270,8 @@
 						VkPipelineBindPoint::VK_PIPELINE_BIND_POINT_GRAPHICS,	//pipelineBindPoint
 						0,														//inputAttachmentCount
 						nullptr,												//pInputAttachments
-						1,														//colorAttachmentCount
-						&colorAttachmentReference,								//pColorAttachments
+						colorAttachmentReferences.Length(),						//colorAttachmentCount
+						colorAttachmentReferences.Data(),						//pColorAttachments
 						nullptr,												//pResolveAttachments
 						nullptr,												//pDepthStencilAttachment
 						0,														//preserveAttachmentCount
@@ -264,8 +294,8 @@
 						STRUCTURE_TYPE(RENDER_PASS_CREATE_INFO),					//sType
 						nullptr,													//pNext
 						0,															//flags
-						1,															//attachmentCount
-						&attachmentDescription,										//pAttachments
+						attachmentDescriptions.Length(),							//attachmentCount
+						attachmentDescriptions.Data(),								//pAttachments
 						1,															//subpassCount
 						&subpassDescription,										//pSubpasses
 						1,															//dependencyCount
@@ -545,17 +575,32 @@
 						false													//alphaToOneEnable
 					};
 
-					VkPipelineColorBlendAttachmentState attachment
-					{
-						false,																																																				//blendEnable
-						VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//srcColorBlendFactor
-						VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//dstColorBlendFactor
-						VkBlendOp::VK_BLEND_OP_ADD,																																															//colorBlendOp
-						VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//srcAlphaBlendFactor
-						VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//dstAlphaBlendFactor
-						VkBlendOp::VK_BLEND_OP_ADD,																																															//alphaBlendOp
-						VkColorComponentFlagBits::VK_COLOR_COMPONENT_R_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_G_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_B_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_A_BIT	//colorWriteMask
-					};
+					constexpr auto attachments = Collections::MakeArray<VkPipelineColorBlendAttachmentState>
+					(
+						VkPipelineColorBlendAttachmentState
+						{
+							false,																																																				//blendEnable
+							VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//srcColorBlendFactor
+							VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//dstColorBlendFactor
+							VkBlendOp::VK_BLEND_OP_ADD,																																															//colorBlendOp
+							VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//srcAlphaBlendFactor
+							VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//dstAlphaBlendFactor
+							VkBlendOp::VK_BLEND_OP_ADD,																																															//alphaBlendOp
+							VkColorComponentFlagBits::VK_COLOR_COMPONENT_R_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_G_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_B_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_A_BIT	//colorWriteMask
+						},
+
+						VkPipelineColorBlendAttachmentState
+						{
+							false,																																																				//blendEnable
+							VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//srcColorBlendFactor
+							VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//dstColorBlendFactor
+							VkBlendOp::VK_BLEND_OP_ADD,																																															//colorBlendOp
+							VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//srcAlphaBlendFactor
+							VkBlendFactor::VK_BLEND_FACTOR_ONE,																																													//dstAlphaBlendFactor
+							VkBlendOp::VK_BLEND_OP_ADD,																																															//alphaBlendOp
+							VkColorComponentFlagBits::VK_COLOR_COMPONENT_R_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_G_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_B_BIT | VkColorComponentFlagBits::VK_COLOR_COMPONENT_A_BIT	//colorWriteMask
+						}
+					);
 
 					VkPipelineColorBlendStateCreateInfo colorBlendState
 					{
@@ -564,8 +609,8 @@
 						0,														//flags
 						false,													//logicOpEnable
 						VkLogicOp::VK_LOGIC_OP_COPY,							//logicOp
-						1,														//attachmentCount
-						&attachment,											//pAttachments
+						attachments.Length(),									//attachmentCount
+						attachments.Data(),										//pAttachments
 						{														//blendConstants[4]
 							0.0f,
 							0.0f,
@@ -690,6 +735,39 @@
 					}
 				}
 
+				VkMemoryRequirements memoryRequirements;
+
+				//IDsImages
+				{
+					IDImages.Resize(info.framesInFlightCount);
+
+					ImageCreateInfo createInfo
+					{
+						VkImageType::VK_IMAGE_TYPE_2D,																						//imageType
+						VkFormat::VK_FORMAT_R32_UINT,																						//format
+						{																													//extent
+							dynamicData.viewport.width - dynamicData.viewport.x,														//width
+							dynamicData.viewport.height - dynamicData.viewport.y														//height
+						},																													
+						VkImageTiling::VK_IMAGE_TILING_LINEAR,																				////tiling
+						VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VkImageUsageFlagBits::VK_IMAGE_USAGE_TRANSFER_SRC_BIT,	//usage
+						VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,																	//aspectFlag
+						VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT														//memoryFlag
+					};
+
+					for (auto& image : IDImages)
+					{
+						memoryRequirements = CreateImage(image, createInfo);
+
+						//TODO: Zrobiæ tu ¿eby layout zmieniæ na color src(po prostu ¿eby tego b³êdu siê pozbyæ)
+					}
+				}
+
+				//IDsBuffer
+				{
+					CreateBuffer(IDsBuffer, memoryRequirements.size, VkBufferUsageFlagBits::VK_BUFFER_USAGE_TRANSFER_DST_BIT, VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+				}
+
 				//Framebuffers
 				{
 					framebuffers.Resize(info.framesInFlightCount);
@@ -702,14 +780,17 @@
 						renderPass,												//renderPass
 						1,														//attachmentCount
 						nullptr,												//pAttachments
-						dynamicData.viewport.x + dynamicData.viewport.width,	//width
-						dynamicData.viewport.y + dynamicData.viewport.height,	//height
+						dynamicData.viewport.width - dynamicData.viewport.x,	//width
+						dynamicData.viewport.height - dynamicData.viewport.y,	//height
 						1														//layers
 					};
 
 					for (ULInt i = 0; i < imageViews.Length(); i++)
 					{
-						createInfo.pAttachments = &imageViews[i];
+						auto attachments = Collections::MakeArray<VkImageView>(imageViews[i], IDImages[i].imageView);
+
+						createInfo.pAttachments = attachments.Data();
+						createInfo.attachmentCount = attachments.Length();
 
 						CHECK_RESULT(vkCreateFramebuffer(info.device, &createInfo, nullptr, &framebuffers[i]))
 					}
@@ -723,7 +804,11 @@
 					vkDestroyFramebuffer(info.device, framebuffers[i], nullptr);
 
 					vkDestroyImageView(info.device, imageViews[i], nullptr);
+
+					DestroyImage(IDImages[i]);
 				}
+
+				DestroyBuffer(IDsBuffer);
 			}
 
 			void VulkanRenderer::RecreateSizingObjects()
@@ -818,8 +903,9 @@
 					vkUnmapMemory(info.device, indexBuffers[frameInFlightIndex].memory);
 				}
 
-				VkClearValue clearValue{};
-				clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+				VkClearValue clearValues[2];
+				clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+				clearValues[1].color.uint32[0] = 0;
 
 				VkRenderPassBeginInfo renderPassBeginInfo
 				{
@@ -837,8 +923,8 @@
 							dynamicData.viewport.height	//height
 						}
 					},
-					1,											//clearValueCount
-					&clearValue									//pClearValues
+					2,											//clearValueCount
+					clearValues									//pClearValues
 				};
 
 				const VkCommandBuffer& commandBuffer = frameInfo->commandBuffer;
