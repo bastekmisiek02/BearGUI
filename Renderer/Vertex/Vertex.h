@@ -15,7 +15,7 @@ namespace Bear
 			Vertex();
 			Vertex(const Vec2& position, const Vec4& color);
 
-			static void NextID();
+			static UInt NextID();
 		};
 	}
 }

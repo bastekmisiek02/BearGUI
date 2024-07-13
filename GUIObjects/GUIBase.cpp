@@ -10,17 +10,23 @@ namespace Bear
 	{
 		#ifdef BEAR_LIBRARY_INCLUDED
 		Base::Base()
-			: parent(nullptr), position(), color({ 0.0f, 0.0f, 0.0f, 1.0f }), text(), name(), isVisible(false), anchor(Anchor::Center | Anchor::Mid), textAlign(Anchor::Center | Anchor::Mid), currentColor(&color), isDestroyed(false), vertices(), indices()
+			: parent(nullptr), position(), defaultColor({ 0.0f, 0.0f, 0.0f, 1.0f }), clickColor(defaultColor), hoverColor(defaultColor), text(), name(), isVisible(false), anchor(Anchor::Center | Anchor::Mid), textAlign(Anchor::Center | Anchor::Mid), currentColor(&defaultColor), isDestroyed(false), vertices(), indices()
 		{
-			Vertex::NextID();
+			id = Vertex::NextID();
 
 			GUI::objects.Add(this);
 		}
 
-		Base::Base(Base* parent, const GraphicsMath::IVec2& position, const GraphicsMath::Vec4& color, const Collections::String& text, const char& anchor, const char& textAlign, const Collections::String& name)
-			: parent(parent), position(position), color(color), text(text), name(name), isVisible(true), anchor(anchor), textAlign(textAlign), currentColor(&this->color), isDestroyed(false), vertices(), indices()
+		Base::Base(Base* parent, const IVec2& position, const IVec2& size, const Vec4& defaultColor, const String& text, const Vec4& clickColor, const Vec4& hoverColor, const char& anchor, const char& textAlign, const Collections::String& name)
+			: parent(parent), position(position), size(size), defaultColor(defaultColor), clickColor(clickColor), hoverColor(hoverColor), text(text), name(name), isVisible(true), anchor(anchor), textAlign(textAlign), currentColor(&this->defaultColor), isDestroyed(false), vertices(), indices()
 		{
-			Vertex::NextID();
+			id = Vertex::NextID();
+
+			if (clickColor.a == -1)
+				this->clickColor = defaultColor;
+
+			if (hoverColor.a == -1)
+				this->hoverColor = defaultColor;
 
 			if (parent)
 				parent->childrens.Add(this);
@@ -77,6 +83,76 @@ namespace Bear
 		void Base::OnMouseClick(char mouseButton)
 		{
 		}
+
+		void Base::OnPositionChange(const IVec2& newPosition)
+		{
+			//TODO: Dokoñczyæ z uwzglêdnieniem anchora
+
+			vertices = Collections::MakeDynamicArray<Vertex>
+			(
+				Vertex
+				{
+					{-0.5f, 0.5f},
+					*currentColor
+				},
+
+				Vertex
+				{
+					{0.5f, 0.5f},
+					*currentColor
+				},
+
+				Vertex
+				{
+					{0.5f, -0.5f},
+					*currentColor
+				},
+
+				Vertex
+				{
+					{-0.5f, -0.5f},
+					*currentColor
+				}
+			);
+
+			indices = Collections::MakeDynamicArray<UInt>
+				(
+					0U, 1U, 2U,
+					2U, 3U, 0U
+				);
+		}
+
+		void Base::OnSizeChange(const IVec2& newSize)
+		{
+		}
+
+		void Base::OnColorChange(const Vec4& newColor)
+		{
+			for (auto& vertex : vertices)
+				vertex.color = newColor;
+		}
+
+		void Base::OnTextChange(const String& newText)
+		{
+		}
+
+		void Base::Init()
+		{
+			OnPositionChange(position);
+			OnSizeChange(size);
+			OnColorChange(defaultColor);
+			OnTextChange(text);
+		}
+
+		void Base::SetColor()
+		{
+			this->OnColorChange(*currentColor);
+		}
+
+		void Base::SetColor(const Vec4& newColor)
+		{
+			this->OnColorChange(newColor);
+		}
 		
 		const bool Base::IsVisible() const
 		{
@@ -131,17 +207,51 @@ namespace Bear
 		
 		void Base::SetPosition(const GraphicsMath::IVec2& newPosition)
 		{
+			this->OnPositionChange(newPosition);
+
 			position = newPosition;
 		}
-		
-		GraphicsMath::Vec4 Base::GetColor() const
+
+		IVec2 Base::GetSize() const
 		{
-			return color;
+			return size;
+		}
+
+		void Base::SetSize(const IVec2& newSize)
+		{
+			this->OnSizeChange(newSize);
+
+			size = newSize;
 		}
 		
-		void Base::SetColor(const GraphicsMath::Vec4& newColor)
+		GraphicsMath::Vec4 Base::GetDefaultColor() const
 		{
-			color = newColor;
+			return defaultColor;
+		}
+		
+		void Base::SetDefaultColor(const GraphicsMath::Vec4& newColor)
+		{
+			defaultColor = newColor;
+		}
+
+		Vec4 Base::GetClickColor() const
+		{
+			return clickColor;
+		}
+
+		void Base::SetClickColor(const Vec4& newColor)
+		{
+			clickColor = newColor;
+		}
+
+		Vec4 Base::GetHoverColor() const
+		{
+			return hoverColor;
+		}
+
+		void Base::SetHoverColor(const Vec4& newColor)
+		{
+			hoverColor = newColor;
 		}
 		
 		Collections::String Base::GetText() const
@@ -151,6 +261,8 @@ namespace Bear
 		
 		void Base::SetText(const Collections::String& newText)
 		{
+			this->OnTextChange(newText);
+
 			text = newText;
 		}
 		

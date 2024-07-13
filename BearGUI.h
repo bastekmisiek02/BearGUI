@@ -15,10 +15,12 @@ namespace Bear
 			friend class Base;
 		private:
 			static DynamicArray<Base*> objects;
+			static Base* lastActive;
+			static Window* window;
 		public:
 			static void Init(Window* window, void* data);
 			static void Render(void* data);
-			static void Update();
+			static void Update(void* data = nullptr);
 			static void Clean();
 		public:
 			static void Resize(void* info);

@@ -27,6 +27,8 @@ namespace Bear
 			static void RemoveRenderData(DynamicArray<Vertex>* vertices, DynamicArray<UInt>* indices);
 		public:
 			static void SetViewportInfo(void* info = nullptr);
+		public:
+			static UInt GetObjectIDFromPos(const UInt& x, const UInt& y, void* data);
 		};
 	}
 }

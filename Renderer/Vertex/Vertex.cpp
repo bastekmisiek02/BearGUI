@@ -16,9 +16,11 @@ namespace Bear
 		{
 		}
 
-		void Vertex::NextID()
+		UInt Vertex::NextID()
 		{
 			nextID++;
+
+			return nextID;
 		}
 	}
 }

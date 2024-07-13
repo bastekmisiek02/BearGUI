@@ -46,5 +46,10 @@ namespace Bear
 		{
 			RENDERER::SetViewportInfo(info);
 		}
+
+		UInt Renderer::GetObjectIDFromPos(const UInt& x, const UInt& y, void* data)
+		{
+			return RENDERER::GetIDFromPos(x, y, data);
+		}
 	}
 }

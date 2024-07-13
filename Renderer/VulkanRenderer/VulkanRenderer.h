@@ -37,6 +37,9 @@
 					VkImageView imageView;
 					VkImage image;
 					VkDeviceMemory memory;
+
+					VkImageLayout layout;
+					VkAccessFlags accessFlags;
 				};
 			private:
 				static DynamicArray<VkImageView> imageViews;
@@ -44,6 +47,16 @@
 			private:
 				static VkPipelineLayout pipelineLayout;
 				static VkPipeline pipeline;
+			private:
+				static struct OneTimeSubmitData
+				{
+					void Begin();
+					void End();
+
+					VkCommandPool commandPool;
+					VkCommandBuffer commandBuffer;
+					VkFence fence;
+				}oneTimeSubmitData;
 			private:
 				struct Buffer
 				{
@@ -70,6 +83,8 @@
 			private:
 				static VkMemoryRequirements CreateImage(Image& image, const ImageCreateInfo& imageCreateInfo);
 				static void DestroyImage(Image& image);
+
+				static void TransitionImageLayout(Image& image, const VkImageLayout& newLayout, const VkAccessFlags& newAccess);
 			private:
 				static void CreateSizingObjects();
 				static void DisposeSizingObjects();
@@ -82,6 +97,8 @@
 				static void Render(void* frameInfo);
 			public:
 				static void SetViewportInfo(void* viewportInfo);
+			public:
+				static UInt GetIDFromPos(const UInt& x, const UInt& y, void* frameIndex);
 			};
 		}
 	}

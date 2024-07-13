@@ -22,6 +22,8 @@ namespace Bear
 		private:
 			friend class GUI;
 		private:
+			UInt id;
+		private:
 			bool isDestroyed;
 		protected:
 			bool isVisible;
@@ -30,7 +32,11 @@ namespace Bear
 			DynamicArray<Base*> childrens;
 		protected:
 			IVec2 position;
-			Vec4 color;
+			IVec2 size;
+		protected:
+			Vec4 defaultColor;
+			Vec4 clickColor;
+			Vec4 hoverColor;
 		protected:
 			Vec4* currentColor;
 		protected:
@@ -44,7 +50,7 @@ namespace Bear
 			DynamicArray<UInt> indices;
 		public:
 			Base();
-			Base(Base* parent, const IVec2& position, const Vec4& color, const String& text, const char& anchor = Anchor::Center | Anchor::Mid, const char& textAlign = Anchor::Center | Anchor::Mid, const String& name = "");
+			Base(Base* parent, const IVec2& position, const IVec2& size, const Vec4& defaultColor, const String& text, const Vec4& clickColor = {0.0f, 0.0f, 0.0f, -1.0f}, const Vec4& hoverColor = { 0.0f, 0.0f, 0.0f, -1.0f }, const char& anchor = Anchor::Center | Anchor::Mid, const char& textAlign = Anchor::Center | Anchor::Mid, const String& name = "");
 			virtual ~Base();
 		protected:
 			void AddRenderData();
@@ -54,6 +60,16 @@ namespace Bear
 			virtual void OnMouseExit();
 
 			virtual void OnMouseClick(char mouseButton);
+
+			virtual void OnPositionChange(const IVec2& newPosition);
+			virtual void OnSizeChange(const IVec2& newSize);
+			virtual void OnColorChange(const Vec4& newColor);
+			virtual void OnTextChange(const String& newText);
+		protected:
+			void Init();
+		protected:
+			void SetColor();
+			void SetColor(const Vec4& newColor);
 		public:
 			const bool IsVisible() const;
 
@@ -70,8 +86,17 @@ namespace Bear
 			IVec2 GetPosition() const;
 			void SetPosition(const IVec2& newPosition);
 		public:
-			Vec4 GetColor() const;
-			void SetColor(const Vec4& newColor);
+			IVec2 GetSize() const;
+			void SetSize(const IVec2& newSize);
+		public:
+			Vec4 GetDefaultColor() const;
+			void SetDefaultColor(const Vec4& newColor);
+
+			Vec4 GetClickColor() const;
+			void SetClickColor(const Vec4& newColor);
+
+			Vec4 GetHoverColor() const;
+			void SetHoverColor(const Vec4& newColor);
 		public:
 			String GetText() const;
 			void SetText(const String& newText);

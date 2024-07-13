@@ -33,6 +33,8 @@
 
 			VulkanRenderer::DynamicData VulkanRenderer::dynamicData = {};
 
+			VulkanRenderer::OneTimeSubmitData VulkanRenderer::oneTimeSubmitData = {};
+
 			UInt VulkanRenderer::FindMemoryIndex(const UInt& memoryType, const VkMemoryPropertyFlags& memoryPropertyFlags)
 			{
 				for (UInt i = 0; i < memoryProperties.memoryTypeCount; i++)
@@ -163,6 +165,9 @@
 					CHECK_RESULT(vkCreateImageView(info.device, &createInfo, nullptr, &image.imageView));
 				}
 
+				image.layout = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
+				image.accessFlags = 0;
+
 				return memoryRequirements;
 			}
 
@@ -171,6 +176,79 @@
 				vkFreeMemory(info.device, image.memory, nullptr);
 				vkDestroyImageView(info.device, image.imageView, nullptr);
 				vkDestroyImage(info.device, image.image, nullptr);
+			}
+
+			void VulkanRenderer::OneTimeSubmitData::Begin()
+			{
+				vkWaitForFences(info.device, 1, &oneTimeSubmitData.fence, false, (ULInt)~0);
+				vkResetFences(info.device, 1, &oneTimeSubmitData.fence);
+
+				VkCommandBufferBeginInfo beginInfo
+				{
+					STRUCTURE_TYPE(COMMAND_BUFFER_BEGIN_INFO),
+					nullptr,
+					VkCommandBufferUsageFlagBits::VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+					nullptr
+				};
+
+				vkBeginCommandBuffer(commandBuffer, &beginInfo);
+			}
+
+			void VulkanRenderer::OneTimeSubmitData::End()
+			{
+				vkEndCommandBuffer(commandBuffer);
+
+				VkSubmitInfo submitInfo
+				{
+					STRUCTURE_TYPE(SUBMIT_INFO),
+					nullptr,
+					0,
+					nullptr,
+					nullptr,
+					1,
+					&commandBuffer,
+					0,
+					nullptr
+				};
+
+				vkQueueSubmit(info.transferQueue, 1, &submitInfo, oneTimeSubmitData.fence);
+			}
+
+			void VulkanRenderer::TransitionImageLayout(Image& image, const VkImageLayout& newLayout, const VkAccessFlags& newAccess)
+			{
+				oneTimeSubmitData.Begin();
+				{
+					VkImageMemoryBarrier imageBarrier
+					{
+						VkStructureType::VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,	//sType
+						nullptr,													//pNext
+						image.accessFlags,											//srcAccessMask
+						newAccess,													//dstAccessMask
+						image.layout,												//oldLayout
+						newLayout,													//newLayout
+						VK_QUEUE_FAMILY_IGNORED,									//srcQueueFamilyIndex
+						VK_QUEUE_FAMILY_IGNORED,									//dstQueueFamilyIndex
+						image.image,												//image
+						{															//subresourceRange
+							VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,//aspectMask
+							0,												 //baseMipLevel
+							1,												 //levelCount
+							0,												 //baseArrayLayer
+							1												 //layerCount
+						}
+					};
+
+					image.accessFlags = newAccess;
+					image.layout = newLayout;
+
+					VkPipelineStageFlags dstStageFlags = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+					if (newLayout == VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newAccess == 0)
+						dstStageFlags = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+					vkCmdPipelineBarrier(oneTimeSubmitData.commandBuffer, VkPipelineStageFlagBits::VK_PIPELINE_STAGE_TRANSFER_BIT, dstStageFlags, VkDependencyFlagBits::VK_DEPENDENCY_BY_REGION_BIT, 0, nullptr, 0, nullptr, 1, &imageBarrier);
+				}
+				oneTimeSubmitData.End();
 			}
 
 			void VulkanRenderer::Init(void* data)
@@ -285,8 +363,8 @@
 						VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,		//srcStageMask
 						VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,		//dstStageMask
 						0,																			//srcAccessMask
-						VkAccessFlagBits::VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,						//dstAccessMask
-						VkDependencyFlagBits::VK_DEPENDENCY_DEVICE_GROUP_BIT						//dependencyFlags
+						VkAccessFlagBits::VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,						//dstAccessMask
+						0																			//dependencyFlags
 					};
 
 					VkRenderPassCreateInfo createInfo
@@ -303,6 +381,48 @@
 					};
 
 					CHECK_RESULT(vkCreateRenderPass(info->device, &createInfo, nullptr, &renderPass));
+				}
+
+				//OneTimeSubmitInfo
+				{
+					//CommandPool
+					{
+						VkCommandPoolCreateInfo createInfo
+						{
+							STRUCTURE_TYPE(COMMAND_POOL_CREATE_INFO),										//sType
+							nullptr,																		//pNext
+							VkCommandPoolCreateFlagBits::VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,	//flags
+							info->transferQueueIndex														//queueFamilyIndex
+						};
+
+						CHECK_RESULT(vkCreateCommandPool(info->device, &createInfo, nullptr, &oneTimeSubmitData.commandPool));
+					}
+
+					//Commandbuffer
+					{
+						VkCommandBufferAllocateInfo allocInfo
+						{
+							STRUCTURE_TYPE(COMMAND_BUFFER_ALLOCATE_INFO),				//sType
+							nullptr,													//pNext
+							oneTimeSubmitData.commandPool,								//commandPool
+							VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_PRIMARY,		//level
+							1															//commandBufferCount
+						};
+
+						CHECK_RESULT(vkAllocateCommandBuffers(info->device, &allocInfo, &oneTimeSubmitData.commandBuffer));
+					}
+
+					//Fence
+					{
+						VkFenceCreateInfo createInfo
+						{
+							STRUCTURE_TYPE(FENCE_CREATE_INFO),	//sType
+							nullptr,							//pNext
+							0									//flags
+						};
+
+						CHECK_RESULT(vkCreateFence(info->device, &createInfo, nullptr, &oneTimeSubmitData.fence));
+					}
 				}
 
 				CreateSizingObjects();
@@ -353,7 +473,7 @@
 						*/
 						constexpr UInt vertCode[] =
 						{
-							0x07230203,0x00010000,0x0008000a,0x00000024,0x00000000,0x00020011,0x00000001,0x0006000b,
+							0x07230203,0x00010000,0x0008000b,0x00000024,0x00000000,0x00020011,0x00000001,0x0006000b,
 							0x00000001,0x4c534c47,0x6474732e,0x3035342e,0x00000000,0x0003000e,0x00000000,0x00000001,
 							0x000b000f,0x00000000,0x00000004,0x6e69616d,0x00000000,0x0000000d,0x00000012,0x0000001b,
 							0x0000001d,0x00000020,0x00000022,0x00030003,0x00000002,0x000001c2,0x00090004,0x415f4c47,
@@ -411,7 +531,7 @@
 
 						constexpr UInt fragCode[] =
 						{
-							0x07230203,0x00010000,0x0008000a,0x00000013,0x00000000,0x00020011,0x00000001,0x0006000b,
+							0x07230203,0x00010000,0x0008000b,0x00000013,0x00000000,0x00020011,0x00000001,0x0006000b,
 							0x00000001,0x4c534c47,0x6474732e,0x3035342e,0x00000000,0x0003000e,0x00000000,0x00000001,
 							0x0009000f,0x00000004,0x00000004,0x6e69616d,0x00000000,0x00000009,0x0000000b,0x0000000f,
 							0x00000011,0x00030010,0x00000004,0x00000007,0x00030003,0x00000002,0x000001c2,0x00090004,
@@ -430,6 +550,7 @@
 							0x00000000,0x00000003,0x000200f8,0x00000005,0x0004003d,0x00000007,0x0000000c,0x0000000b,
 							0x0003003e,0x00000009,0x0000000c,0x0004003d,0x0000000d,0x00000012,0x00000011,0x0003003e,
 							0x0000000f,0x00000012,0x000100fd,0x00010038
+
 						};
 
 						VkShaderModuleCreateInfo shaderCreateInfos[shaderCount]{};
@@ -690,6 +811,12 @@
 				vkDestroyPipelineLayout(info.device, pipelineLayout, nullptr);
 				vkDestroyPipeline(info.device, pipeline, nullptr);
 				vkDestroyRenderPass(info.device, renderPass, nullptr);
+
+				{
+					vkFreeCommandBuffers(info.device, oneTimeSubmitData.commandPool, 1, &oneTimeSubmitData.commandBuffer);
+					vkDestroyCommandPool(info.device, oneTimeSubmitData.commandPool, nullptr);
+					vkDestroyFence(info.device, oneTimeSubmitData.fence, nullptr);
+				}
 			}
 
 			void VulkanRenderer::CreateSizingObjects()
@@ -758,8 +885,10 @@
 					for (auto& image : IDImages)
 					{
 						memoryRequirements = CreateImage(image, createInfo);
+						image.accessFlags = 0;
+						image.layout = VkImageLayout::VK_IMAGE_LAYOUT_UNDEFINED;
 
-						//TODO: Zrobiæ tu ¿eby layout zmieniæ na color src(po prostu ¿eby tego b³êdu siê pozbyæ)
+						TransitionImageLayout(image, VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, 0);
 					}
 				}
 
@@ -951,6 +1080,72 @@
 				dynamicData.scissor = viewportInfo->scissor;
 
 				RecreateSizingObjects();
+			}
+
+			UInt VulkanRenderer::GetIDFromPos(const UInt& x, const UInt& y, void* frameIndex)
+			{
+				UInt imageIndex = (UInt)frameIndex;
+
+				auto& srcImage = IDImages[imageIndex];
+
+				TransitionImageLayout(srcImage, VkImageLayout::VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VkAccessFlagBits::VK_ACCESS_TRANSFER_READ_BIT);
+				{
+					oneTimeSubmitData.Begin();
+					{
+						VkBufferImageCopy region
+						{
+							0,														//bufferOffset
+							0,														//bufferRowLength
+							0,														//bufferImageHeight
+							{														//imageSubresource
+								VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,	//aspectMask				
+								0,												//mipLevel					
+								0,												//baseArrayLayer
+								1												//layerCount
+							},
+							{														//imageOffset
+								0,												//x
+								0,												//y
+								0												//z
+							},
+							{														//imageExtent
+								dynamicData.viewport.width,						//width
+								dynamicData.viewport.height,					//height
+								1												//depth
+							}
+						};
+
+						vkCmdCopyImageToBuffer(oneTimeSubmitData.commandBuffer, srcImage.image, srcImage.layout, IDsBuffer.buffer, 1, &region);
+					}
+					oneTimeSubmitData.End();
+				}
+				TransitionImageLayout(srcImage, VkImageLayout::VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VkAccessFlagBits::VK_ACCESS_MEMORY_READ_BIT);
+
+				VkSubresourceLayout layout{};
+				{
+					VkImageSubresource subresource
+					{
+						VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,	//aspectMask
+						0,													//mipLevel
+						0													//arrayLayer
+					};
+
+					vkGetImageSubresourceLayout(info.device, srcImage.image, &subresource, &layout);
+				}
+
+				UInt* data = nullptr;
+				UInt id = 0;
+
+				vkMapMemory(info.device, IDsBuffer.memory, layout.offset, VK_WHOLE_SIZE, 0, (void**)&data);
+				{
+					id = data[y * (UInt)dynamicData.viewport.width + x];
+				}
+				vkUnmapMemory(info.device, IDsBuffer.memory);
+
+				if (id == (UInt)~0)
+					id = 0;
+
+				return id;
 			}
 		}
 	}

@@ -7,9 +7,35 @@ namespace Bear
 	namespace GUI
 	{
 		DynamicArray<Base*> GUI::objects;
+		Base* GUI::lastActive = nullptr;
+		Window* GUI::window = nullptr;
+
+		static char GetMouseClickedButtons(Window* window)
+		{
+			char mouseButtonClicked = 0;
+
+			if (window->IsKeyDown((char)Window::MouseButton::Left))
+				mouseButtonClicked |= (char)Window::MouseButton::Left;
+
+			if (window->IsKeyDown((char)Window::MouseButton::Right))
+				mouseButtonClicked |= (char)Window::MouseButton::Right;
+
+			if (window->IsKeyDown((char)Window::MouseButton::Middle))
+				mouseButtonClicked |= (char)Window::MouseButton::Middle;
+
+			if (window->IsKeyDown((char)Window::MouseButton::XButton1))
+				mouseButtonClicked |= (char)Window::MouseButton::XButton1;
+
+			if (window->IsKeyDown((char)Window::MouseButton::XButton2))
+				mouseButtonClicked |= (char)Window::MouseButton::XButton2;
+
+			return mouseButtonClicked;
+		}
 
 		void GUI::Init(Window* window, void* data)
 		{
+			GUI::window = window;
+
 			if (data)
 				Renderer::Init(data);
 			else
@@ -21,10 +47,69 @@ namespace Bear
 			Renderer::Render(data);
 		}
 
-		void GUI::Update()
+		void GUI::Update(void* data)
 		{
+			const auto& pos = window->GetMousePosition();
+
+			const char mouseButtonClicked = GetMouseClickedButtons(window);
+
+			void* additionalData = nullptr;
+
+			#ifdef USE_VULKAN
+				additionalData = data;
+			#endif
+
+			UInt id = 0;
+
+			if (pos.x != -1 && pos.y != -1)
+				id = Renderer::GetObjectIDFromPos(pos.x, pos.y, additionalData);
+
+			if (id == 0)
+			{
+				if (lastActive)
+				{
+					lastActive->currentColor = &lastActive->defaultColor;
+					lastActive->SetColor();
+
+					lastActive->OnMouseExit();
+				}
+
+				lastActive = nullptr;
+
+				return;
+			}
+
 			for (auto& obj : objects)
 			{
+				if (obj->id == id)
+				{
+					if (lastActive != obj)
+					{
+						if (lastActive)
+						{
+							lastActive->currentColor = &lastActive->defaultColor;
+							lastActive->SetColor();
+
+							lastActive->OnMouseExit();
+						}
+
+						obj->currentColor = &obj->hoverColor;
+						obj->SetColor();
+
+						lastActive = obj;
+
+						obj->OnMouseEnter();
+					}
+
+					if (mouseButtonClicked)
+					{
+						obj->currentColor = &obj->clickColor;
+						obj->SetColor();
+
+						obj->OnMouseClick(mouseButtonClicked);
+					}
+				}
+
 				//if (obj->IsPointerOnObject(renderInfo->window->GetMousePosition()))
 				//{
 				//	if (!obj->isPointerOnObject)
