@@ -17,6 +17,20 @@ namespace Bear
 			Bottom = 32
 		};
 
+		struct Defaults
+		{
+			class Base* parent;
+			IVec2 position;
+			IVec2 size;
+			Vec4 defaultColor;
+			String text;
+			char anchor = Anchor::Center | Anchor::Mid;
+			char textAlign = Anchor::Center | Anchor::Mid;
+			String name = "";
+		};
+
+		typedef void(*OnMouseClickCallback)(Base* element, void* data);
+
 		class Base
 		{
 		private:

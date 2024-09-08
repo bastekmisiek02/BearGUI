@@ -10,7 +10,7 @@ namespace Bear
 		{
 		public:
 			Label();
-			Label(Base* parent, const IVec2& position, const IVec2& size, const Vec4& color, const String& text, const char& anchor = Anchor::Center | Anchor::Mid, const char& textAlign = Anchor::Center | Anchor::Mid, const String& name = "");
+			Label(const Defaults& settings);
 		};
 	}
 }

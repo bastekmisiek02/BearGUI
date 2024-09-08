@@ -9,8 +9,8 @@ namespace Bear
 		{
 		}
 
-		Label::Label(Base* parent, const IVec2& position, const IVec2& size, const Vec4& color, const String& text, const char& anchor, const char& textAlign, const String& name)
-			: Base(parent, position, size, color, text, color, color, anchor, textAlign, name)
+		Label::Label(const Defaults& settings)
+			: Base(settings.parent, settings.position, settings.size, settings.defaultColor, settings.text, settings.defaultColor, settings.defaultColor, settings.anchor, settings.textAlign, settings.name)
 		{
 			Init();
 		}
