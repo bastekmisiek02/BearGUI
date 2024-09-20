@@ -47,6 +47,17 @@ namespace Bear
 			Renderer::Render(data);
 		}
 
+		void GUI::ResetLastActive()
+		{
+			if (lastActive)
+			{
+				lastActive->currentColor = &lastActive->defaultColor;
+				lastActive->SetColor();
+
+				lastActive->OnMouseExit();
+			}
+		}
+
 		void GUI::Update(void* data)
 		{
 			const auto& pos = window->GetMousePosition();
@@ -66,32 +77,21 @@ namespace Bear
 
 			if (id == 0)
 			{
-				if (lastActive)
-				{
-					lastActive->currentColor = &lastActive->defaultColor;
-					lastActive->SetColor();
-
-					lastActive->OnMouseExit();
-				}
+				ResetLastActive();
 
 				lastActive = nullptr;
 
 				return;
 			}
-
+			
 			for (auto& obj : objects)
 			{
+				//TODO (Map): Gdy bede mial mape to po prostu dodac ze klucz to jest id a obj do tego jest value i wtedy nie trzeba po liœcie siê poruszaæ
 				if (obj->id == id)
 				{
 					if (lastActive != obj)
 					{
-						if (lastActive)
-						{
-							lastActive->currentColor = &lastActive->defaultColor;
-							lastActive->SetColor();
-
-							lastActive->OnMouseExit();
-						}
+						ResetLastActive();
 
 						obj->currentColor = &obj->hoverColor;
 						obj->SetColor();
@@ -101,6 +101,9 @@ namespace Bear
 						obj->OnMouseEnter();
 					}
 
+					obj->currentColor = &obj->hoverColor;
+					obj->SetColor();
+
 					if (mouseButtonClicked)
 					{
 						obj->currentColor = &obj->clickColor;
@@ -108,6 +111,8 @@ namespace Bear
 
 						obj->OnMouseClick(mouseButtonClicked);
 					}
+
+					return;
 				}
 
 				//if (obj->IsPointerOnObject(renderInfo->window->GetMousePosition()))

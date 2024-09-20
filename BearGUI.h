@@ -17,6 +17,8 @@ namespace Bear
 			static DynamicArray<Base*> objects;
 			static Base* lastActive;
 			static Window* window;
+		private:
+			static void ResetLastActive();
 		public:
 			static void Init(Window* window, void* data);
 			static void Render(void* data);
