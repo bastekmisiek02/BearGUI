@@ -10,7 +10,7 @@ namespace Bear
 		{
 		public:
 			Label();
-			Label(const Defaults& settings);
+			Label(const Properties& properties);
 		};
 	}
 }

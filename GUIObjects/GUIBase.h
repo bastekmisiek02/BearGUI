@@ -17,7 +17,7 @@ namespace Bear
 			Bottom = 32
 		};
 
-		struct Defaults
+		struct Properties
 		{
 			class Base* parent;
 			IVec2 position;

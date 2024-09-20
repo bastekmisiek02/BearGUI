@@ -9,8 +9,8 @@ namespace Bear
 		{
 		}
 
-		Label::Label(const Defaults& settings)
-			: Base(settings.parent, settings.position, settings.size, settings.defaultColor, settings.text, settings.defaultColor, settings.defaultColor, settings.anchor, settings.textAlign, settings.name)
+		Label::Label(const Properties& properties)
+			: Base(properties.parent, properties.position, properties.size, properties.defaultColor, properties.text, properties.defaultColor, properties.defaultColor, properties.anchor, properties.textAlign, properties.name)
 		{
 			Init();
 		}

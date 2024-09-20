@@ -14,7 +14,7 @@ namespace Bear
 			Collections::DynamicArray<void*> data;
 		public:
 			Button();
-			Button(const Defaults& settings, const Vec4& clickColor = { 0.0f, 0.0f, 0.0f, -1.0f }, const Vec4& hoverColor = { 0.0f, 0.0f, 0.0f, -1.0f });
+			Button(const Properties& properties, const Vec4& clickColor = { 0.0f, 0.0f, 0.0f, -1.0f }, const Vec4& hoverColor = { 0.0f, 0.0f, 0.0f, -1.0f });
 		public:
 			void AddCallback(const OnMouseClickCallback& callback, void* data = nullptr);
 			void RemoveCallback(const OnMouseClickCallback& callback);

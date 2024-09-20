@@ -9,8 +9,8 @@ namespace Bear
 		{
 		}
 
-		Button::Button(const Defaults& settings, const Vec4& clickColor, const Vec4& hoverColor)
-			: Base(settings.parent, settings.position, settings.size, settings.defaultColor, settings.text, clickColor, hoverColor, settings.anchor, settings.textAlign, settings.name)
+		Button::Button(const Properties& properties, const Vec4& clickColor, const Vec4& hoverColor)
+			: Base(properties.parent, properties.position, properties.size, properties.defaultColor, properties.text, clickColor, hoverColor, properties.anchor, properties.textAlign, properties.name)
 		{
 			Init();
 		}
